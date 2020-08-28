@@ -1,0 +1,4 @@
+determined==0.13.0
+determined-cli==0.13.0
+determined-deploy==0.13.0
+torch==1.4.0
