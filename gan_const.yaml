@@ -1,4 +1,4 @@
-description: MSG GAN Const
+description: MNIST GAN Pytorch Const
 data:
   url: "https://s3-us-west-2.amazonaws.com/determined-ai-test-data/pytorch_mnist.tar.gz"
 hyperparameters:
@@ -7,19 +7,10 @@ hyperparameters:
   b1: 0.5
   b2: 0.999
   latent_dim: 100
-
-  filter_multiplier: 4
-  min_filters: 0
-  max_filters: 0
-  spectral_normalization: True
-
-  latent_dimension: 256
-  image_size: 256
-  image_channels: 1
 searcher:
   name: single
   metric: loss
   max_length:
     batches: 40000
   smaller_is_better: True
-entrypoint: msg_gan:MsgGANTrail
+entrypoint: gan:GANTrial
