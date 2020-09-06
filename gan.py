@@ -14,10 +14,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from torch.optim.lr_scheduler import LambdaLR
-
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, LRScheduler
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+from torch.optim.lr_scheduler import LambdaLR
 
 import data
 
@@ -123,7 +122,7 @@ class GANTrial(PyTorchTrial):
         return DataLoader(validation_data, batch_size=self.context.get_per_slot_batch_size())
 
     def train_batch(
-        self, batch: TorchData, epoch_idx: int, batch_idx: int
+            self, batch: TorchData, epoch_idx: int, batch_idx: int
     ) -> Dict[str, torch.Tensor]:
         imgs, _ = batch
 
@@ -138,10 +137,10 @@ class GANTrial(PyTorchTrial):
         z = self.context.to_device(z)
         generated_imgs = self.generator(z)
 
-        # Log sampled images to Tensorboard.
-        sample_imgs = generated_imgs[:6]
-        grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.writer.add_image(f'generated_images_epoch_{epoch_idx}', grid, batch_idx)
+        ## Log sampled images to Tensorboard.
+        # sample_imgs = generated_imgs[:6]
+        # grid = torchvision.utils.make_grid(sample_imgs)
+        # self.logger.writer.add_image(f'generated_images_epoch_{epoch_idx}', grid, batch_idx)
 
         # Calculate generator loss.
         valid = torch.ones(imgs.size(0), 1)
@@ -151,7 +150,6 @@ class GANTrial(PyTorchTrial):
         # Run backward pass and step the optimizer for the generator.
         self.context.backward(g_loss)
         self.context.step_optimizer(self.opt_g)
-
 
         # Train discriminator.
         # Set `requires_grad_` to only update parameters on the discriminator.
