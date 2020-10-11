@@ -140,7 +140,7 @@ class GANTrial(PyTorchTrial):
         # Log sampled images to Tensorboard.
         sample_imgs = generated_imgs[:6]
         grid = make_grid(sample_imgs)
-        self.logger.writer.add_image(f'generated_images_epoch_{epoch_idx}', grid, batch_idx)
+        self.logger.writer.add_image(f'generated_images_epoch', grid, batch_idx)
 
         # Calculate generator loss.
         valid = torch.ones(imgs.size(0), 1)
