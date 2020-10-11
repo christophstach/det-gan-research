@@ -1,0 +1,12 @@
+environment:
+  image:
+    cpu: "deepprojects/determined-pytorch-1.6-tf-2.2-cpu"
+    gpu: "deepprojects/determined-cuda-10.1-pytorch-1.6-tf-2.2-gpu"
+
+resources:
+  agent_label: dt-cluster
+
+bind_mounts:
+  - host_path: /data/ldap/stachc/datasets
+    container_path: /datasets
+    read_only: true

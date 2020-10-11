@@ -1,8 +1,12 @@
 description: MSG GAN Const
-data:
-  url: "https://s3-us-west-2.amazonaws.com/determined-ai-test-data/pytorch_mnist.tar.gz"
+entrypoint: msg_gan:MsgGANTrail
+
+resources:
+  slots_per_trial: 2
+  agent_label: dt-cluster
+
 hyperparameters:
-  global_batch_size: 32
+  global_batch_size: 64
   lr: 0.0002
   b1: 0.5
   b2: 0.999
@@ -14,12 +18,22 @@ hyperparameters:
   spectral_normalization: True
 
   latent_dimension: 256
-  image_size: 256
+  image_size: 32
   image_channels: 1
+
 searcher:
   name: single
   metric: loss
+  smaller_is_better: True
   max_length:
     batches: 40000
-  smaller_is_better: True
-entrypoint: msg_gan:MsgGANTrail
+
+environment:
+  image:
+    cpu: "deepprojects/determined-pytorch-1.6-tf-2.2-cpu"
+    gpu: "deepprojects/determined-cuda-10.1-pytorch-1.6-tf-2.2-gpu"
+
+bind_mounts:
+  - host_path: /data/ldap/stachc/datasets
+    container_path: /datasets
+    read_only: true

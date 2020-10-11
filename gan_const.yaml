@@ -1,16 +1,30 @@
 description: MNIST GAN Pytorch Const
-data:
-  url: "https://s3-us-west-2.amazonaws.com/determined-ai-test-data/pytorch_mnist.tar.gz"
+entrypoint: gan:GANTrial
+
+resources:
+  slots_per_trial: 2
+  agent_label: dt-cluster
+
 hyperparameters:
-  global_batch_size: 32
+  global_batch_size: 64
   lr: 0.0002
   b1: 0.5
   b2: 0.999
   latent_dim: 100
+
 searcher:
   name: single
   metric: loss
-  max_length:
-    batches: 40000
   smaller_is_better: True
-entrypoint: gan:GANTrial
+  max_length:
+    batches: 100000
+
+environment:
+  image:
+    cpu: "deepprojects/determined-pytorch-1.6-tf-2.2-cpu"
+    gpu: "deepprojects/determined-cuda-10.1-pytorch-1.6-tf-2.2-gpu"
+
+bind_mounts:
+  - host_path: /data/ldap/stachc/datasets
+    container_path: /datasets
+    read_only: true

@@ -1,5 +1,5 @@
-determined==0.13.2
-determined-cli==0.13.2
-determined-deploy==0.13.2
-torch==1.4.0
-torchvision==0.5.0
+determined==0.13.5
+determined-cli==0.13.5
+determined-deploy==0.13.5
+torch==1.6.0
+torchvision==0.7.0

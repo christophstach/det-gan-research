@@ -1,14 +1,16 @@
-from typing import Union, Any, Dict, Sequence
+from typing import Union, Any, Dict
 
-import data
 import torch
+import torch.nn.functional as F
 import torch.optim as optim
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
-from torchvision.utils import make_grid
 
+import data
 from losses import WGAN
 from models import MsgDiscriminator, MsgGenerator
+
+from .utils.types import TorchData
 
 
 class MsgGANTrail(PyTorchTrial):
@@ -17,10 +19,6 @@ class MsgGANTrail(PyTorchTrial):
 
         self.context = context
         self.logger = TorchWriter()
-
-        # Create a unique download directory for each rank so they don"t overwrite each other.
-        self.download_directory = f"/tmp/data-rank{self.context.distributed.get_rank()}"
-        self.data_downloaded = False
 
         lr = self.context.get_hparam("lr")
         b1 = self.context.get_hparam("b1")
@@ -35,23 +33,28 @@ class MsgGANTrail(PyTorchTrial):
         self.image_channels = self.context.get_hparam("image_channels")
         self.latent_dimension = self.context.get_hparam("latent_dimension")
 
-        self.generator = self.context.wrap_model(MsgGenerator(
-            filter_multiplier=filter_multiplier,
-            min_filters=min_filters,
-            max_filters=max_filters,
-            image_size=self.image_size,
-            image_channels=self.image_channels,
-            latent_dimension=self.latent_dimension,
-            spectral_normalization=spectral_normalization
-        ))
-        self.discriminator = self.context.wrap_model(MsgDiscriminator(
-            filter_multiplier=filter_multiplier,
-            min_filters=min_filters,
-            max_filters=max_filters,
-            image_size=self.image_size,
-            image_channels=self.image_channels,
-            spectral_normalization=spectral_normalization
-        ))
+        self.generator = self.context.wrap_model(
+            MsgGenerator(
+                filter_multiplier=filter_multiplier,
+                min_filters=min_filters,
+                max_filters=max_filters,
+                image_size=self.image_size,
+                image_channels=self.image_channels,
+                latent_dimension=self.latent_dimension,
+                spectral_normalization=spectral_normalization
+            )
+        )
+
+        self.discriminator = self.context.wrap_model(
+            MsgDiscriminator(
+                filter_multiplier=filter_multiplier,
+                min_filters=min_filters,
+                max_filters=max_filters,
+                image_size=self.image_size,
+                image_channels=self.image_channels,
+                spectral_normalization=spectral_normalization
+            )
+        )
 
         self.opt_g = self.context.wrap_optimizer(optim.Adam(self.generator.parameters(), lr=lr, betas=(b1, b2)))
         self.opt_d = self.context.wrap_optimizer(optim.Adam(self.discriminator.parameters(), lr=lr, betas=(b1, b2)))
@@ -60,7 +63,7 @@ class MsgGANTrail(PyTorchTrial):
 
     def train_batch(
             self,
-            batch: Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor],
+            batch: TorchData,
             epoch_idx: int,
             batch_idx: int,
             **kwargs
@@ -79,9 +82,9 @@ class MsgGANTrail(PyTorchTrial):
         generated_imgs = self.generator(z)
 
         # Log sampled images to Tensorboard.
-        sample_imgs = generated_imgs[:6]
-        grid = make_grid(sample_imgs)
-        self.logger.writer.add_image(f"generated_images_epoch_{epoch_idx}", grid, batch_idx)
+        # sample_imgs = generated_imgs[:6]
+        # grid = make_grid(sample_imgs)
+        # self.logger.writer.add_image(f"generated_images_epoch_{epoch_idx}", grid, batch_idx)
 
         real_validity = self.discriminator(imgs)
         fake_validity = self.discriminator(generated_imgs)
@@ -122,4 +125,24 @@ class MsgGANTrail(PyTorchTrial):
             self.data_downloaded = True
 
         train_data = data.get_dataset(self.download_directory, train=True)
+
         return DataLoader(train_data, batch_size=self.context.get_per_slot_batch_size())
+
+    def build_validation_data_loader(self) -> DataLoader:
+        if not self.data_downloaded:
+            self.download_directory = data.download_dataset(
+                download_directory=self.download_directory,
+                data_config=self.context.get_data_config(),
+            )
+            self.data_downloaded = True
+
+        validation_data = data.get_dataset(self.download_directory, train=False)
+        return DataLoader(validation_data, batch_size=self.context.get_per_slot_batch_size())
+
+    def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
+        imgs, _ = batch
+        valid = torch.ones(imgs.size(0), 1)
+        valid = self.context.to_device(valid)
+        loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+
+        return {"loss": loss}

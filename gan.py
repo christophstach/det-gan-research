@@ -7,20 +7,19 @@ __init__ method. Then in train_batch(), you can run forward and backward passes
 and step the optimizer according to your requirements.
 """
 
-from typing import Any, Dict, Union, Sequence
+from typing import Any, Dict
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, LRScheduler
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 from torch.optim.lr_scheduler import LambdaLR
+from torchvision.utils import make_grid
 
-import data
-
-TorchData = Union[Dict[str, torch.Tensor], Sequence[torch.Tensor], torch.Tensor]
+import datasets as ds
+from utils.types import TorchData
 
 
 class Generator(nn.Module):
@@ -30,9 +29,12 @@ class Generator(nn.Module):
 
         def block(in_feat, out_feat, normalize=True):
             layers = [nn.Linear(in_feat, out_feat)]
+
             if normalize:
                 layers.append(nn.BatchNorm1d(out_feat, 0.8))
+
             layers.append(nn.LeakyReLU(0.2, inplace=True))
+
             return layers
 
         self.model = nn.Sequential(
@@ -76,54 +78,52 @@ class GANTrial(PyTorchTrial):
         self.context = context
         self.logger = TorchWriter()
 
-        # Create a unique download directory for each rank so they don't overwrite each other.
-        self.download_directory = f"/tmp/data-rank{self.context.distributed.get_rank()}"
-        self.data_downloaded = False
-
         # Initialize the models.
         mnist_shape = (1, 28, 28)
-        self.generator = self.context.wrap_model(Generator(latent_dim=self.context.get_hparam("latent_dim"),
-                                                           img_shape=mnist_shape))
+        self.generator = self.context.wrap_model(
+            Generator(
+                latent_dim=self.context.get_hparam("latent_dim"),
+                img_shape=mnist_shape
+            )
+        )
+
         self.discriminator = self.context.wrap_model(Discriminator(img_shape=mnist_shape))
 
         # Initialize the optimizers and learning rate scheduler.
         lr = self.context.get_hparam("lr")
         b1 = self.context.get_hparam("b1")
         b2 = self.context.get_hparam("b2")
-        self.opt_g = self.context.wrap_optimizer(torch.optim.Adam(self.generator.parameters(),
-                                                                  lr=lr, betas=(b1, b2)))
-        self.opt_d = self.context.wrap_optimizer(torch.optim.Adam(self.discriminator.parameters(),
-                                                                  lr=lr, betas=(b1, b2)))
+
+        self.opt_g = self.context.wrap_optimizer(
+            torch.optim.Adam(
+                self.generator.parameters(),
+                lr=lr,
+                betas=(b1, b2)
+            )
+        )
+
+        self.opt_d = self.context.wrap_optimizer(
+            torch.optim.Adam(
+                self.discriminator.parameters(),
+                lr=lr,
+                betas=(b1, b2)
+            )
+        )
+
         self.lr_g = self.context.wrap_lr_scheduler(
             lr_scheduler=LambdaLR(self.opt_g, lr_lambda=lambda epoch: 0.95 ** epoch),
             step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH,
         )
 
     def build_training_data_loader(self) -> DataLoader:
-        if not self.data_downloaded:
-            self.download_directory = data.download_dataset(
-                download_directory=self.download_directory,
-                data_config=self.context.get_data_config(),
-            )
-            self.data_downloaded = True
-
-        train_data = data.get_dataset(self.download_directory, train=True)
+        train_data = ds.mnist(train=True)
         return DataLoader(train_data, batch_size=self.context.get_per_slot_batch_size())
 
     def build_validation_data_loader(self) -> DataLoader:
-        if not self.data_downloaded:
-            self.download_directory = data.download_dataset(
-                download_directory=self.download_directory,
-                data_config=self.context.get_data_config(),
-            )
-            self.data_downloaded = True
-
-        validation_data = data.get_dataset(self.download_directory, train=False)
+        validation_data = ds.mnist(train=False)
         return DataLoader(validation_data, batch_size=self.context.get_per_slot_batch_size())
 
-    def train_batch(
-            self, batch: TorchData, epoch_idx: int, batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         imgs, _ = batch
 
         # Train generator.
@@ -137,10 +137,10 @@ class GANTrial(PyTorchTrial):
         z = self.context.to_device(z)
         generated_imgs = self.generator(z)
 
-        ## Log sampled images to Tensorboard.
-        # sample_imgs = generated_imgs[:6]
-        # grid = torchvision.utils.make_grid(sample_imgs)
-        # self.logger.writer.add_image(f'generated_images_epoch_{epoch_idx}', grid, batch_idx)
+        # Log sampled images to Tensorboard.
+        sample_imgs = generated_imgs[:6]
+        grid = make_grid(sample_imgs)
+        self.logger.writer.add_image(f'generated_images_epoch_{epoch_idx}', grid, batch_idx)
 
         # Calculate generator loss.
         valid = torch.ones(imgs.size(0), 1)
@@ -180,4 +180,5 @@ class GANTrial(PyTorchTrial):
         valid = torch.ones(imgs.size(0), 1)
         valid = self.context.to_device(valid)
         loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+
         return {"loss": loss}
