@@ -1,6 +1,9 @@
 description: MNIST GAN Pytorch Const
 entrypoint: gan:GANTrial
 
+min_validation_period:
+  batches: 1000
+
 resources:
   slots_per_trial: 1
   agent_label: dt-cluster
@@ -14,8 +17,8 @@ hyperparameters:
 
 searcher:
   name: single
-  metric: loss
-  smaller_is_better: True
+  metric: stability
+  smaller_is_better: false
   max_length:
     batches: 100000
 

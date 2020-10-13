@@ -19,6 +19,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torchvision.utils import make_grid
 
 import datasets as ds
+from metrics import Stability
 from utils.types import TorchData
 
 
@@ -78,11 +79,13 @@ class GANTrial(PyTorchTrial):
         self.context = context
         self.logger = TorchWriter()
 
+        self.latent_dim = self.context.get_hparam("latent_dim")
+
         # Initialize the models.
         mnist_shape = (1, 28, 28)
         self.generator = self.context.wrap_model(
             Generator(
-                latent_dim=self.context.get_hparam("latent_dim"),
+                latent_dim=self.latent_dim,
                 img_shape=mnist_shape
             )
         )
@@ -115,13 +118,23 @@ class GANTrial(PyTorchTrial):
             step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH,
         )
 
+        self.stability_metric = Stability()
+
     def build_training_data_loader(self) -> DataLoader:
         train_data = ds.mnist(train=True)
-        return DataLoader(train_data, batch_size=self.context.get_per_slot_batch_size())
+        return DataLoader(
+            train_data,
+            batch_size=self.context.get_per_slot_batch_size()
+        )
 
     def build_validation_data_loader(self) -> DataLoader:
-        validation_data = ds.mnist(train=False)
-        return DataLoader(validation_data, batch_size=self.context.get_per_slot_batch_size())
+        validation_data = ds.noise(self.context.get_per_slot_batch_size(), [self.latent_dim])
+
+        return DataLoader(
+            validation_data,
+            batch_size=self.context.get_per_slot_batch_size(),
+            shuffle=False
+        )
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         imgs, _ = batch
@@ -140,7 +153,7 @@ class GANTrial(PyTorchTrial):
         # Log sampled images to Tensorboard.
         sample_imgs = generated_imgs[:6]
         grid = make_grid(sample_imgs)
-        self.logger.writer.add_image(f'generated_images_epoch', grid, batch_idx)
+        self.logger.writer.add_image(f'generated_images', grid, batch_idx)
 
         # Calculate generator loss.
         valid = torch.ones(imgs.size(0), 1)
@@ -175,10 +188,23 @@ class GANTrial(PyTorchTrial):
             'd_loss': d_loss,
         }
 
-    def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
-        imgs, _ = batch
-        valid = torch.ones(imgs.size(0), 1)
-        valid = self.context.to_device(valid)
-        loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+    def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
+        for [batch] in data_loader:
+            images = self.generator(batch)
+            self.stability_metric.add_batch(images)
+            # self.stability_metric.add_batch(batch)
 
-        return {"loss": loss}
+        stability = self.stability_metric()
+        self.stability_metric.step()
+
+        return {
+            'stability': stability
+        }
+
+    # def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
+    #    imgs, _ = batch
+    #    valid = torch.ones(imgs.size(0), 1)
+    #    valid = self.context.to_device(valid)
+    #    loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+
+    #    return {"loss": loss}

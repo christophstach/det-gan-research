@@ -15,7 +15,7 @@ hyperparameters:
   filter_multiplier: 4
   min_filters: 0
   max_filters: 0
-  spectral_normalization: True
+  spectral_normalization: false
 
   latent_dimension: 256
   image_size: 32
@@ -24,7 +24,7 @@ hyperparameters:
 searcher:
   name: single
   metric: loss
-  smaller_is_better: True
+  smaller_is_better: false
   max_length:
     batches: 40000
 
