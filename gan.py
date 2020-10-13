@@ -19,7 +19,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torchvision.utils import make_grid
 
 import datasets as ds
-from metrics import Stability
+from metrics import Instability
 from utils.types import TorchData
 
 
@@ -118,7 +118,7 @@ class GANTrial(PyTorchTrial):
             step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH,
         )
 
-        self.stability_metric = Stability()
+        self.instability_metric = Instability()
 
     def build_training_data_loader(self) -> DataLoader:
         train_data = ds.mnist(train=True)
@@ -189,16 +189,16 @@ class GANTrial(PyTorchTrial):
         }
 
     def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
-        for [batch] in data_loader:
-            images = self.generator(batch)
-            self.stability_metric.add_batch(images)
-            # self.stability_metric.add_batch(batch)
+        for [z] in data_loader:
+            z = self.context.to_device(z)
+            generated_imgs = self.generator(z)
+            self.instability_metric.add_batch(generated_imgs)
 
-        stability = self.stability_metric()
-        self.stability_metric.step()
+        instability = self.instability_metric()
+        self.instability_metric.step()
 
         return {
-            'stability': stability
+            'instability': instability
         }
 
     # def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:

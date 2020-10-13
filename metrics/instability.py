@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 
-class Stability(Metric):
+class Instability(Metric):
     def __init__(self) -> None:
         super().__init__()
 
@@ -22,7 +22,7 @@ class Stability(Metric):
             return 0.0
         elif len(self.__last_data) == len(self.__current_data):
             stabilities = [
-                1.0 - F.l1_loss(last_batch, current_batch)
+                F.l1_loss(last_batch, current_batch)
                 for last_batch, current_batch
                 in zip(self.__last_data, self.__current_data)
             ]
