@@ -1,6 +1,8 @@
 description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
+records_per_epoch: 60000
+
 min_validation_period:
   batches: 500
 
@@ -28,7 +30,7 @@ searcher:
   metric: 32x32_instability
   smaller_is_better: true
   max_length:
-    batches: 200000
+    epochs: 750
 
 environment:
   image:

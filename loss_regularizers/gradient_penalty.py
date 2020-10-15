@@ -50,7 +50,10 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
             create_graph=True
         )
 
-        inputs_gradients = [input_gradients.view(input_gradients.shape[0], -1) for input_gradients in inputs_gradients]
+        inputs_gradients = [
+            input_gradients.view(input_gradients.shape[0], -1)
+            for input_gradients in inputs_gradients
+        ]
         gradients = torch.cat(inputs_gradients, dim=1)
 
         if self.norm_type == "l1":

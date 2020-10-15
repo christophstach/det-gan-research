@@ -72,45 +72,46 @@ class MsgGANTrail(PyTorchTrial):
 
         self.instability_metrics = [Instability() for _ in self.img_sizes]
 
-    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
-        real_imgs, _ = batch
-        scaled_real_images = utils.to_scaled_images(real_imgs, self.image_size)
-
-        # Train generator.
-        # Set `requires_grad_` to only update parameters on the generator.
-        self.generator.requires_grad_(True)
-        self.discriminator.requires_grad_(False)
-
-        # Sample noise and generator images.
-        # Note that you need to map the generated data to the device specified by Determined.
-        z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
-        z = self.context.to_device(z)
-        scaled_fake_imgs = self.generator(z)
-
-        real_validity = self.discriminator(scaled_real_images)
-        fake_validity = self.discriminator(scaled_fake_imgs)
-
-        # Calculate generator loss.
-        g_loss = self.loss.generator_loss(real_validity, fake_validity)
-
-        # Run backward pass and step the optimizer for the generator.
-        self.context.backward(g_loss)
-        self.context.step_optimizer(self.opt_g)
-
-        # Train discriminator.
-        # Set `requires_grad_` to only update parameters on the discriminator.
+    def optimize_discriminator(self, z, scaled_real_images):
         self.generator.requires_grad_(False)
         self.discriminator.requires_grad_(True)
 
-        # Calculate discriminator loss with a batch of real images and a batch of fake images.
+        scaled_fake_images = self.generator(z)
+
         real_validity = self.discriminator(scaled_real_images)
-        fake_validity = self.discriminator([img.detach() for img in scaled_fake_imgs])
-        gp = self.gradient_penalty(scaled_real_images, scaled_fake_imgs)
+        fake_validity = self.discriminator([img.detach() for img in scaled_fake_images])
+
+        gp = self.gradient_penalty(scaled_real_images, scaled_fake_images)
         d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
-        # Run backward pass and step the optimizer for the generator.
-        self.context.backward(d_loss)
+        self.context.backward(d_loss + gp)
         self.context.step_optimizer(self.opt_d)
+
+        return d_loss, gp
+
+    def optimize_generator(self, z, scaled_real_images):
+        self.generator.requires_grad_(True)
+        self.discriminator.requires_grad_(False)
+
+        scaled_fake_images = self.generator(z)
+        real_validity = self.discriminator(scaled_real_images)
+        fake_validity = self.discriminator(scaled_fake_images)
+
+        g_loss = self.loss.generator_loss(real_validity, fake_validity)
+
+        self.context.backward(g_loss)
+        self.context.step_optimizer(self.opt_g)
+
+        return g_loss
+
+    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
+        real_imgs, _ = batch
+        scaled_real_images = utils.to_scaled_images(real_imgs, self.image_size)
+        z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
+        z = self.context.to_device(z)
+
+        d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
+        g_loss = self.optimize_generator(z, scaled_real_images)
 
         return {
             "loss": d_loss + gp,
