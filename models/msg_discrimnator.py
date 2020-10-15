@@ -1,13 +1,20 @@
 import math
 
 import torch
+from torch.nn.utils import spectral_norm
 
 import layers as l
-from torch.nn.utils import spectral_norm
 
 
 class MsgDiscriminator(torch.nn.Module):
-    def __init__(self, filter_multiplier, min_filters, max_filters, image_size, image_channels, spectral_normalization) -> None:
+    def __init__(self,
+                 filter_multiplier: int,
+                 min_filters: int,
+                 max_filters: int,
+                 image_size: int,
+                 image_channels: int,
+                 spectral_normalization: bool) -> None:
+
         super().__init__()
 
         self.blocks = torch.nn.ModuleList()
@@ -20,16 +27,16 @@ class MsgDiscriminator(torch.nn.Module):
 
         if min_filters > 0:
             discriminator_filters = [
-                filter if filter > min_filters
+                d_filter if d_filter > min_filters
                 else min_filters
-                for filter in discriminator_filters
+                for d_filter in discriminator_filters
             ]
 
         if max_filters > 0:
             discriminator_filters = [
-                filter if filter < max_filters
+                d_filter if d_filter < max_filters
                 else max_filters
-                for filter in discriminator_filters
+                for d_filter in discriminator_filters
             ]
 
         for i, _ in enumerate(discriminator_filters):
@@ -64,7 +71,7 @@ class MsgDiscriminator(torch.nn.Module):
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = list(reversed(x))
         x_forward = self.blocks[0](x[0])
 

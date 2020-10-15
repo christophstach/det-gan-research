@@ -3,16 +3,28 @@ from torch.utils.data import DataLoader
 from metrics import Instability
 import torch
 
-noise_ds = ds.noise(16, [2, 2])
-loader = DataLoader(noise_ds, shuffle=False, batch_size=4)
+from models import MsgGenerator, MsgDiscriminator
+import math
 
-stability = Instability()
-stability.add_batch(torch.tensor([0.0, 0.0]))
-stability.add_batch(torch.tensor([0.0, 1.0]))
+dataset = ds.mnist(True, 32, 3, root=".datasets")
+loader = DataLoader(dataset, batch_size=4)
 
-stability.step()
-stability.add_batch(torch.tensor([2.0, 1.0]))
-stability.add_batch(torch.tensor([1.0, 1.0]))
+z = torch.rand(4, 128)
+generator = MsgGenerator(2, 16, 16, 32, 3, 128, True)
+discriminator = MsgDiscriminator(2, 16, 16, 32, 3, True)
+
+imgs = generator(z)
+fake_validity = discriminator(imgs)
+
+img_sizes = [
+    2 ** (x + 1)
+    for x in range(1, int(math.log2(32)))
+]
 
 
-print('Stability: ', stability())
+instabilities = [1, 2, 3, 4]
+
+
+print({
+
+})

@@ -21,6 +21,7 @@ import torch.optim as optim
 import datasets as ds
 from metrics import Instability
 from utils.types import TorchData
+import utils
 
 
 class Generator(nn.Module):
@@ -133,9 +134,11 @@ class GANTrial(PyTorchTrial):
 
     def build_training_data_loader(self) -> DataLoader:
         train_data = ds.mnist(train=True, size=32)
+
         return DataLoader(
             train_data,
-            batch_size=self.context.get_per_slot_batch_size()
+            batch_size=self.context.get_per_slot_batch_size(),
+            drop_last=True
         )
 
     def build_validation_data_loader(self) -> DataLoader:
@@ -147,11 +150,8 @@ class GANTrial(PyTorchTrial):
             shuffle=False
         )
 
-    def sample_noise(self, batch_size):
-        return torch.randn(batch_size, self.context.get_hparam("latent_dim"))
-
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
-        imgs, _ = batch
+        real_imgs, _ = batch
 
         # Train generator.
         # Set `requires_grad_` to only update parameters on the generator.
@@ -160,12 +160,12 @@ class GANTrial(PyTorchTrial):
 
         # Sample noise and generator images.
         # Note that you need to map the generated data to the device specified by Determined.
-        z = self.sample_noise(imgs.shape[0])
+        z = utils.sample_noise(real_imgs.shape[0], self.latent_dim)
         z = self.context.to_device(z)
         generated_imgs = self.generator(z)
 
         # Calculate generator loss.
-        valid = torch.ones(imgs.size(0), 1)
+        valid = torch.ones(real_imgs.size(0), 1)
         valid = self.context.to_device(valid)
         g_loss = F.binary_cross_entropy(self.discriminator(generated_imgs), valid)
 
@@ -179,9 +179,9 @@ class GANTrial(PyTorchTrial):
         self.discriminator.requires_grad_(True)
 
         # Calculate discriminator loss with a batch of real images and a batch of fake images.
-        valid = torch.ones(imgs.size(0), 1)
+        valid = torch.ones(real_imgs.size(0), 1)
         valid = self.context.to_device(valid)
-        real_loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+        real_loss = F.binary_cross_entropy(self.discriminator(real_imgs), valid)
         fake = torch.zeros(generated_imgs.size(0), 1)
         fake = self.context.to_device(fake)
         fake_loss = F.binary_cross_entropy(self.discriminator(generated_imgs.detach()), fake)
@@ -214,7 +214,7 @@ class GANTrial(PyTorchTrial):
         self.logger.writer.add_image(f'generated_fixed_images', grid)
 
         # Log sample images to Tensorboard.
-        z2 = self.sample_noise(6)
+        z2 = utils.sample_noise(6, self.latent_dim)
         z2 = self.context.to_device(z2)
         generated_sample_imgs = self.generator(z2)
         grid = make_grid(generated_sample_imgs)

@@ -1,16 +1,19 @@
-from typing import Union, Any, Dict
+import math
+from typing import Any, Dict
 
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+from torchvision.utils import make_grid
 
-import data
+import datasets as ds
+import utils
+from loss_regularizers import GradientPenalty
 from losses import WGAN
+from metrics import Instability
 from models import MsgDiscriminator, MsgGenerator
-
-from .utils.types import TorchData
+from utils.types import TorchData
 
 
 class MsgGANTrail(PyTorchTrial):
@@ -60,15 +63,18 @@ class MsgGANTrail(PyTorchTrial):
         self.opt_d = self.context.wrap_optimizer(optim.Adam(self.discriminator.parameters(), lr=lr, betas=(b1, b2)))
 
         self.loss = WGAN()
+        self.gradient_penalty = GradientPenalty(self.context, self.discriminator)
 
-    def train_batch(
-            self,
-            batch: TorchData,
-            epoch_idx: int,
-            batch_idx: int,
-            **kwargs
-    ) -> Union[torch.Tensor, Dict[str, Any]]:
-        imgs, _ = batch
+        self.img_sizes = [
+            2 ** (x + 1)
+            for x in range(1, int(math.log2(self.image_size)))
+        ]
+
+        self.instability_metrics = [Instability() for _ in self.img_sizes]
+
+    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
+        real_imgs, _ = batch
+        scaled_real_images = utils.to_scaled_images(real_imgs, self.image_size)
 
         # Train generator.
         # Set `requires_grad_` to only update parameters on the generator.
@@ -77,17 +83,12 @@ class MsgGANTrail(PyTorchTrial):
 
         # Sample noise and generator images.
         # Note that you need to map the generated data to the device specified by Determined.
-        z = torch.randn(imgs.shape[0], self.latent_dimension)
+        z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
         z = self.context.to_device(z)
-        generated_imgs = self.generator(z)
+        scaled_fake_imgs = self.generator(z)
 
-        # Log sampled images to Tensorboard.
-        # sample_imgs = generated_imgs[:6]
-        # grid = make_grid(sample_imgs)
-        # self.logger.writer.add_image(f"generated_images_epoch_{epoch_idx}", grid, batch_idx)
-
-        real_validity = self.discriminator(imgs)
-        fake_validity = self.discriminator(generated_imgs)
+        real_validity = self.discriminator(scaled_real_images)
+        fake_validity = self.discriminator(scaled_fake_imgs)
 
         # Calculate generator loss.
         g_loss = self.loss.generator_loss(real_validity, fake_validity)
@@ -102,8 +103,9 @@ class MsgGANTrail(PyTorchTrial):
         self.discriminator.requires_grad_(True)
 
         # Calculate discriminator loss with a batch of real images and a batch of fake images.
-        real_validity = self.discriminator(imgs)
-        fake_validity = self.discriminator(generated_imgs.detach())
+        real_validity = self.discriminator(scaled_real_images)
+        fake_validity = self.discriminator([img.detach() for img in scaled_fake_imgs])
+        gp = self.gradient_penalty(scaled_real_images, scaled_fake_imgs)
         d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
         # Run backward pass and step the optimizer for the generator.
@@ -111,38 +113,61 @@ class MsgGANTrail(PyTorchTrial):
         self.context.step_optimizer(self.opt_d)
 
         return {
-            "loss": d_loss,
+            "loss": d_loss + gp,
             "g_loss": g_loss,
             "d_loss": d_loss,
+            "gp": gp
         }
 
     def build_training_data_loader(self) -> DataLoader:
-        if not self.data_downloaded:
-            self.download_directory = data.download_dataset(
-                download_directory=self.download_directory,
-                data_config=self.context.get_data_config(),
-            )
-            self.data_downloaded = True
+        train_data = ds.mnist(train=True, size=self.image_size, channels=self.image_channels)
 
-        train_data = data.get_dataset(self.download_directory, train=True)
-
-        return DataLoader(train_data, batch_size=self.context.get_per_slot_batch_size())
+        return DataLoader(
+            train_data,
+            batch_size=self.context.get_per_slot_batch_size(),
+            drop_last=True
+        )
 
     def build_validation_data_loader(self) -> DataLoader:
-        if not self.data_downloaded:
-            self.download_directory = data.download_dataset(
-                download_directory=self.download_directory,
-                data_config=self.context.get_data_config(),
-            )
-            self.data_downloaded = True
+        validation_data = ds.noise(self.context.get_per_slot_batch_size(), [self.latent_dimension])
 
-        validation_data = data.get_dataset(self.download_directory, train=False)
-        return DataLoader(validation_data, batch_size=self.context.get_per_slot_batch_size())
+        return DataLoader(
+            validation_data,
+            batch_size=self.context.get_per_slot_batch_size(),
+            shuffle=False
+        )
 
-    def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
-        imgs, _ = batch
-        valid = torch.ones(imgs.size(0), 1)
-        valid = self.context.to_device(valid)
-        loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
+    def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
+        generated_fixed_imgs = None
 
-        return {"loss": loss}
+        for [z1] in data_loader:
+            z1 = self.context.to_device(z1)
+            generated_fixed_imgs = self.generator(z1)
+
+            for generated_fixed_img, instability_metric in zip(generated_fixed_imgs, self.instability_metrics):
+                instability_metric.add_batch(generated_fixed_img)
+
+        instabilities = [instability_metric() for instability_metric in self.instability_metrics]
+
+        for instability_metric in self.instability_metrics:
+            instability_metric.step()
+
+        # Log fix images to Tensorboard.
+        sample_fixed_imgs = generated_fixed_imgs[-1][:6]
+        grid = make_grid(sample_fixed_imgs)
+        self.logger.writer.add_image(f'generated_fixed_images', grid)
+
+        # Log sample images to Tensorboard.
+        z2 = utils.sample_noise(6, self.latent_dimension)
+        z2 = self.context.to_device(z2)
+        generated_sample_imgs = self.generator(z2)
+        grid = make_grid(generated_sample_imgs[-1])
+        self.logger.writer.add_image(f'generated_sample_images', grid)
+
+        return {
+            **{
+                f'{size}x{size}_instability': instability
+                for size, instability
+                in zip(self.img_sizes, instabilities)
+            }
+        }

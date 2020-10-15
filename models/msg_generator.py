@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Any
 
 import torch
 from torch.nn.utils import spectral_norm
@@ -8,7 +8,15 @@ import layers as l
 
 
 class MsgGenerator(torch.nn.Module):
-    def __init__(self, filter_multiplier, min_filters, max_filters, image_size, image_channels, latent_dimension, spectral_normalization) -> None:
+    def __init__(self,
+                 filter_multiplier: int,
+                 min_filters: int,
+                 max_filters: int,
+                 image_size: int,
+                 image_channels: int,
+                 latent_dimension: int,
+                 spectral_normalization: bool) -> None:
+
         super().__init__()
 
         self.blocks = torch.nn.ModuleList()
@@ -21,16 +29,16 @@ class MsgGenerator(torch.nn.Module):
 
         if min_filters > 0:
             generator_filters = [
-                filter if filter > min_filters
+                g_filter if g_filter > min_filters
                 else min_filters
-                for filter in generator_filters
+                for g_filter in generator_filters
             ]
 
         if max_filters > 0:
             generator_filters = [
-                filter if filter < max_filters
+                g_filter if g_filter < max_filters
                 else max_filters
-                for filter in generator_filters
+                for g_filter in generator_filters
             ]
 
         # TODO check this hier
@@ -73,9 +81,9 @@ class MsgGenerator(torch.nn.Module):
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, z) -> List[torch.Tensor]:
+    def forward(self, z: torch.Tensor) -> List[torch.Tensor]:
         outputs = []
-        x = z.view(z.size(0), -1, 1, 1)
+        x = z.view(z.shape[0], -1, 1, 1)
 
         for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
             x = block(x)

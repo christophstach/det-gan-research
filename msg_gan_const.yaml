@@ -10,7 +10,6 @@ hyperparameters:
   lr: 0.0002
   b1: 0.5
   b2: 0.999
-  latent_dim: 100
 
   filter_multiplier: 4
   min_filters: 0
@@ -23,8 +22,8 @@ hyperparameters:
 
 searcher:
   name: single
-  metric: loss
-  smaller_is_better: false
+  metric: 32x32_instability
+  smaller_is_better: true
   max_length:
     batches: 40000
 
