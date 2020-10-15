@@ -1,6 +1,7 @@
 from .base import Metric
 import torch
 import torch.nn.functional as F
+import math
 
 
 class Instability(Metric):
@@ -19,7 +20,7 @@ class Instability(Metric):
 
     def __call__(self):
         if len(self.__last_data) == 0:
-            return 0.0
+            return math.inf
         elif len(self.__last_data) == len(self.__current_data):
             stabilities = [
                 F.l1_loss(last_batch, current_batch)

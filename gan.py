@@ -13,10 +13,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, LRScheduler
+from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
-from torch.optim.lr_scheduler import LambdaLR
 from torchvision.utils import make_grid
+import torch.optim as optim
 
 import datasets as ds
 from metrics import Instability
@@ -82,7 +82,7 @@ class GANTrial(PyTorchTrial):
         self.latent_dim = self.context.get_hparam("latent_dim")
 
         # Initialize the models.
-        mnist_shape = (1, 28, 28)
+        mnist_shape = (1, 32, 32)
         self.generator = self.context.wrap_model(
             Generator(
                 latent_dim=self.latent_dim,
@@ -98,30 +98,41 @@ class GANTrial(PyTorchTrial):
         b2 = self.context.get_hparam("b2")
 
         self.opt_g = self.context.wrap_optimizer(
-            torch.optim.Adam(
+            optim.Adam(
                 self.generator.parameters(),
                 lr=lr,
                 betas=(b1, b2)
             )
         )
 
+        # self.opt_g = self.context.wrap_optimizer(
+        #     Lamb(
+        #         self.generator.parameters(),
+        #         lr=lr,
+        #         betas=(b1, b2)
+        #     )
+        # )
+
         self.opt_d = self.context.wrap_optimizer(
-            torch.optim.Adam(
+            optim.Adam(
                 self.discriminator.parameters(),
                 lr=lr,
                 betas=(b1, b2)
             )
         )
 
-        self.lr_g = self.context.wrap_lr_scheduler(
-            lr_scheduler=LambdaLR(self.opt_g, lr_lambda=lambda epoch: 0.95 ** epoch),
-            step_mode=LRScheduler.StepMode.STEP_EVERY_EPOCH,
-        )
+        # self.opt_d = self.context.wrap_optimizer(
+        #    Lamb(
+        #        self.generator.parameters(),
+        #        lr=lr,
+        #        betas=(b1, b2)
+        #    )
+        # )
 
         self.instability_metric = Instability()
 
     def build_training_data_loader(self) -> DataLoader:
-        train_data = ds.mnist(train=True)
+        train_data = ds.mnist(train=True, size=32)
         return DataLoader(
             train_data,
             batch_size=self.context.get_per_slot_batch_size()
@@ -136,6 +147,9 @@ class GANTrial(PyTorchTrial):
             shuffle=False
         )
 
+    def sample_noise(self, batch_size):
+        return torch.randn(batch_size, self.context.get_hparam("latent_dim"))
+
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         imgs, _ = batch
 
@@ -146,14 +160,9 @@ class GANTrial(PyTorchTrial):
 
         # Sample noise and generator images.
         # Note that you need to map the generated data to the device specified by Determined.
-        z = torch.randn(imgs.shape[0], self.context.get_hparam("latent_dim"))
+        z = self.sample_noise(imgs.shape[0])
         z = self.context.to_device(z)
         generated_imgs = self.generator(z)
-
-        # Log sampled images to Tensorboard.
-        sample_imgs = generated_imgs[:6]
-        grid = make_grid(sample_imgs)
-        self.logger.writer.add_image(f'generated_images', grid, batch_idx)
 
         # Calculate generator loss.
         valid = torch.ones(imgs.size(0), 1)
@@ -189,22 +198,28 @@ class GANTrial(PyTorchTrial):
         }
 
     def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
-        for [z] in data_loader:
-            z = self.context.to_device(z)
-            generated_imgs = self.generator(z)
-            self.instability_metric.add_batch(generated_imgs)
+        generated_fixed_imgs = None
+
+        for [z1] in data_loader:
+            z1 = self.context.to_device(z1)
+            generated_fixed_imgs = self.generator(z1)
+            self.instability_metric.add_batch(generated_fixed_imgs)
 
         instability = self.instability_metric()
         self.instability_metric.step()
 
+        # Log fix images to Tensorboard.
+        sample_fixed_imgs = generated_fixed_imgs[:6]
+        grid = make_grid(sample_fixed_imgs)
+        self.logger.writer.add_image(f'generated_fixed_images', grid)
+
+        # Log sample images to Tensorboard.
+        z2 = self.sample_noise(6)
+        z2 = self.context.to_device(z2)
+        generated_sample_imgs = self.generator(z2)
+        grid = make_grid(generated_sample_imgs)
+        self.logger.writer.add_image(f'generated_sample_images', grid)
+
         return {
             'instability': instability
         }
-
-    # def evaluate_batch(self, batch: TorchData) -> Dict[str, Any]:
-    #    imgs, _ = batch
-    #    valid = torch.ones(imgs.size(0), 1)
-    #    valid = self.context.to_device(valid)
-    #    loss = F.binary_cross_entropy(self.discriminator(imgs), valid)
-
-    #    return {"loss": loss}
