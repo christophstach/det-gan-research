@@ -1,6 +1,9 @@
 description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
+min_validation_period:
+  batches: 500
+
 resources:
   slots_per_trial: 1
   agent_label: dt-cluster
