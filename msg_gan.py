@@ -9,7 +9,7 @@ from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
-from loss_regularizers import GradientPenalty
+from loss_regularizers import GradientPenalty, PathLengthRegularizer
 from losses import WGAN
 from metrics import Instability
 from models import MsgDiscriminator, MsgGenerator
@@ -64,6 +64,7 @@ class MsgGANTrail(PyTorchTrial):
 
         self.loss = WGAN()
         self.gradient_penalty = GradientPenalty(self.context, self.discriminator)
+        self.path_length_regularizer = PathLengthRegularizer(self.context)
 
         self.img_sizes = [
             2 ** (x + 1)
@@ -76,12 +77,12 @@ class MsgGANTrail(PyTorchTrial):
         self.generator.requires_grad_(False)
         self.discriminator.requires_grad_(True)
 
-        scaled_fake_images = self.generator(z)
+        scaled_fake_images, w = self.generator(z)
 
         real_validity = self.discriminator(scaled_real_images)
         fake_validity = self.discriminator([img.detach() for img in scaled_fake_images])
 
-        gp = self.gradient_penalty(scaled_real_images, scaled_fake_images)
+        gp = self.gradient_penalty(w, scaled_real_images, scaled_fake_images)
         d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
         self.context.backward(d_loss + gp)
@@ -93,16 +94,17 @@ class MsgGANTrail(PyTorchTrial):
         self.generator.requires_grad_(True)
         self.discriminator.requires_grad_(False)
 
-        scaled_fake_images = self.generator(z)
+        scaled_fake_images, w = self.generator(z)
         real_validity = self.discriminator(scaled_real_images)
         fake_validity = self.discriminator(scaled_fake_images)
 
+        plr = self.path_length_regularizer(w, scaled_real_images, scaled_fake_images)
         g_loss = self.loss.generator_loss(real_validity, fake_validity)
 
-        self.context.backward(g_loss)
+        self.context.backward(g_loss + plr)
         self.context.step_optimizer(self.opt_g)
 
-        return g_loss
+        return g_loss, plr
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_imgs, _ = batch
@@ -111,13 +113,14 @@ class MsgGANTrail(PyTorchTrial):
         z = self.context.to_device(z)
 
         d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
-        g_loss = self.optimize_generator(z, scaled_real_images)
+        g_loss, plr = self.optimize_generator(z, scaled_real_images)
 
         return {
             "loss": d_loss + gp,
             "g_loss": g_loss,
             "d_loss": d_loss,
-            "gp": gp
+            "gp": gp,
+            "plr": plr
         }
 
     def build_training_data_loader(self) -> DataLoader:
@@ -143,7 +146,7 @@ class MsgGANTrail(PyTorchTrial):
 
         for [z1] in data_loader:
             z1 = self.context.to_device(z1)
-            generated_fixed_imgs = self.generator(z1)
+            generated_fixed_imgs, _ = self.generator(z1)
 
             for generated_fixed_img, instability_metric in zip(generated_fixed_imgs, self.instability_metrics):
                 instability_metric.add_batch(generated_fixed_img)
@@ -161,7 +164,7 @@ class MsgGANTrail(PyTorchTrial):
         # Log sample images to Tensorboard.
         z2 = utils.sample_noise(6, self.latent_dimension)
         z2 = self.context.to_device(z2)
-        generated_sample_imgs = self.generator(z2)
+        generated_sample_imgs, _ = self.generator(z2)
         grid = make_grid(generated_sample_imgs[-1])
         self.logger.writer.add_image(f'generated_sample_images', grid)
 

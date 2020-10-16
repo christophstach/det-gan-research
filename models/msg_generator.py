@@ -1,13 +1,14 @@
 import math
-from typing import List, Any
+from typing import List, Tuple
 
 import torch
+import torch.nn as nn
 from torch.nn.utils import spectral_norm
 
 import layers as l
 
 
-class MsgGenerator(torch.nn.Module):
+class MsgGenerator(nn.Module):
     def __init__(self,
                  filter_multiplier: int,
                  min_filters: int,
@@ -18,6 +19,10 @@ class MsgGenerator(torch.nn.Module):
                  spectral_normalization: bool) -> None:
 
         super().__init__()
+
+        self.w_network = nn.Sequential(
+            nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
+        )
 
         self.blocks = torch.nn.ModuleList()
         self.to_rgb_converters = torch.nn.ModuleList()
@@ -81,13 +86,16 @@ class MsgGenerator(torch.nn.Module):
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, z: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, z: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
         outputs = []
-        x = z.view(z.shape[0], -1, 1, 1)
+
+        z = z.view(z.shape[0], -1, 1, 1)
+        w = self.w_network(z)
+        x = w
 
         for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
             x = block(x)
             output = torch.tanh(to_rgb(x))
             outputs.append(output)
 
-        return outputs
+        return outputs, w

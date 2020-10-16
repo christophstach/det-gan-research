@@ -1,2 +1,3 @@
 from .gradient_penalty import GradientPenalty
 from .orthogonal_regularizer import OrthogonalRegularizer
+from .path_length_regularizer import PathLengthRegularizer
