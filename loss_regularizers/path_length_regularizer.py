@@ -11,7 +11,7 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
     def __init__(self,
                  context: PyTorchTrialContext,
                  decay=0.01,
-                 first_step=5000,
+                 first_step=100,
                  lazy_regularization_interval: int = 16) -> None:
 
         super().__init__()
@@ -22,6 +22,7 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
         self.__lazy_regularization_interval = lazy_regularization_interval
         self.__steps = 0
         self.__first_step = first_step
+        self.__last_calculated_pp = None
 
     def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
         if self.__steps >= self.__first_step and self.__steps % self.__lazy_regularization_interval == 0:
@@ -47,9 +48,10 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
                 self.__moving_mean_path_length = path_lengths_mean
 
             path_penalty = ((path_lengths - self.__moving_mean_path_length) ** 2).mean()
-
+            self.__last_calculated_pp = path_penalty.clone().detach()
             self.__steps += 1
+
             return path_penalty
         else:
             self.__steps += 1
-            return None
+            return self.__last_calculated_pp
