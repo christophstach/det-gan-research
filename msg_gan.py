@@ -124,7 +124,7 @@ class MsgGANTrail(PyTorchTrial):
         }
 
     def build_training_data_loader(self) -> DataLoader:
-        train_data = ds.mnist(train=True, size=self.image_size, channels=self.image_channels)
+        train_data = ds.celeba_hq(size=self.image_size, channels=self.image_channels)
 
         return DataLoader(
             train_data,
@@ -169,9 +169,9 @@ class MsgGANTrail(PyTorchTrial):
         self.logger.writer.add_image(f'generated_sample_images', grid)
 
         return {
-            **{
+            '128x128_instability': {
                 f'{size}x{size}_instability': instability
                 for size, instability
                 in zip(self.img_sizes, instabilities)
-            }
+            }['128x128_instability']
         }

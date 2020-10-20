@@ -1,7 +1,8 @@
 description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
-records_per_epoch: 60000
+# records_per_epoch: 60000 # for mnist
+records_per_epoch: 30000 # for celebAHQ
 
 min_validation_period:
   batches: 500
@@ -18,19 +19,19 @@ hyperparameters:
 
   filter_multiplier: 4
   min_filters: 0
-  max_filters: 0
+  max_filters: 512
   spectral_normalization: true
 
   latent_dimension: 256
-  image_size: 32
-  image_channels: 1
+  image_size: 128
+  image_channels: 3
 
 searcher:
   name: single
-  metric: 32x32_instability
+  metric: 128x128_instability
   smaller_is_better: true
   max_length:
-    epochs: 750
+    epochs: 50
 
 environment:
   image:
