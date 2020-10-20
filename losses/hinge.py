@@ -14,13 +14,13 @@ class Hinge(losses.base.Loss):
 
         loss = real_loss.mean() + fake_loss.mean()
 
-        return loss.unsqueeze(0)
+        return loss
 
     def generator_loss(self, real_validity: torch.Tensor, fake_validity: torch.Tensor) -> torch.Tensor:
         fake_loss = -fake_validity
 
         loss = fake_loss.mean()
 
-        return loss.unsqueeze(0)
+        return loss
 
 

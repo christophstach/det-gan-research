@@ -34,4 +34,4 @@ class RaSGAN(losses.base.Loss):
 
         loss = (relativistic_real_probability + relativistic_fake_probability) / 2
 
-        return loss.unsqueeze(0)
+        return loss

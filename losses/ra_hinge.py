@@ -16,7 +16,7 @@ class RaHinge(losses.base.Loss):
 
         loss = (real_loss.mean() + fake_loss.mean()) / 2
 
-        return loss.unsqueeze(0)
+        return loss
 
     def generator_loss(self, real_validity: torch.Tensor, fake_validity: torch.Tensor) -> torch.Tensor:
         relativistic_real_validity = real_validity - fake_validity.mean()
@@ -27,6 +27,6 @@ class RaHinge(losses.base.Loss):
 
         loss = (fake_loss.mean() + real_loss.mean()) / 2
 
-        return loss.unsqueeze(0)
+        return loss
 
 

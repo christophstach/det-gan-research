@@ -77,7 +77,7 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
             else:
                 raise NotImplementedError()
 
-            gp = self.__coefficient * penalties.mean().unsqueeze(0)
+            gp = self.__coefficient * penalties.mean()
             self.__last_calculated_gp = gp.clone().detach()
             self.__steps += 1
 

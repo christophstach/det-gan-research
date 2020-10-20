@@ -27,7 +27,7 @@ class RaLSGAN(losses.base.Loss):
 
         loss = (fake_loss.mean() + real_loss.mean()) / 2
 
-        return loss.unsqueeze(0)
+        return loss
 
 
 
