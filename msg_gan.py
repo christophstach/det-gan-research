@@ -35,6 +35,8 @@ class MsgGANTrail(PyTorchTrial):
         self.image_size = self.context.get_hparam("image_size")
         self.image_channels = self.context.get_hparam("image_channels")
         self.latent_dimension = self.context.get_hparam("latent_dimension")
+        self.num_log_images = 6
+        self.log_images_interval = 1000
 
         self.generator = self.context.wrap_model(
             MsgGenerator(
@@ -71,6 +73,7 @@ class MsgGANTrail(PyTorchTrial):
             for x in range(1, int(math.log2(self.image_size)))
         ]
 
+        self.fixed_z = None
         self.instability_metrics = [Instability() for _ in self.img_sizes]
 
     def optimize_discriminator(self, z, scaled_real_images):
@@ -123,6 +126,10 @@ class MsgGANTrail(PyTorchTrial):
         d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
         g_loss, plr = self.optimize_generator(z, scaled_real_images)
 
+        if batch_idx % self.log_images_interval == 0:
+            self.log_fixed_images(batch_idx, epoch_idx)
+            self.log_sample_images(batch_idx, epoch_idx)
+
         logs = {
             "loss": d_loss,
             "g_loss": g_loss,
@@ -132,9 +139,8 @@ class MsgGANTrail(PyTorchTrial):
         }
 
         return {
-            key: logs[key]
+            key: (logs[key] if logs[key] is not None else 0.0)
             for key in logs
-            if logs[key] is not None
         }
 
     def build_training_data_loader(self) -> DataLoader:
@@ -155,9 +161,28 @@ class MsgGANTrail(PyTorchTrial):
             shuffle=False
         )
 
-    def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
-        generated_fixed_imgs = None
+    def log_fixed_images(self, batch_idx, epoch_idx):
+        if self.fixed_z is None:
+            self.fixed_z = utils.sample_noise(self.num_log_images, self.latent_dimension)
+            self.fixed_z = self.context.to_device(self.fixed_z)
 
+        fixed_imgs, _ = self.generator(self.fixed_z)
+        for imgs in fixed_imgs:
+            size = str(imgs.shape[-1])
+            grid = make_grid(imgs)
+            self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}_epoch_{epoch_idx}', grid, batch_idx)
+
+    def log_sample_images(self, batch_idx, epoch_idx):
+        z = utils.sample_noise(self.num_log_images, self.latent_dimension)
+        z = self.context.to_device(z)
+
+        sample_imgs, _ = self.generator(z)
+        for imgs in sample_imgs:
+            size = str(imgs.shape[-1])
+            grid = make_grid(imgs)
+            self.logger.writer.add_image(f'generated_sample_images_{size}x{size}_epoch_{epoch_idx}', grid, batch_idx)
+
+    def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
         for [z1] in data_loader:
             z1 = self.context.to_device(z1)
             generated_fixed_imgs, _ = self.generator(z1)
@@ -169,18 +194,6 @@ class MsgGANTrail(PyTorchTrial):
 
         for instability_metric in self.instability_metrics:
             instability_metric.step()
-
-        # Log fix images to Tensorboard.
-        sample_fixed_imgs = generated_fixed_imgs[-1][:6]
-        grid = make_grid(sample_fixed_imgs)
-        self.logger.writer.add_image(f'generated_fixed_images', grid)
-
-        # Log sample images to Tensorboard.
-        z2 = utils.sample_noise(6, self.latent_dimension)
-        z2 = self.context.to_device(z2)
-        generated_sample_imgs, _ = self.generator(z2)
-        grid = make_grid(generated_sample_imgs[-1])
-        self.logger.writer.add_image(f'generated_sample_images', grid)
 
         return {
             **{

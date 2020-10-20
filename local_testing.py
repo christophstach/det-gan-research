@@ -28,7 +28,7 @@ class PathLengthRegularizer():
             create_graph=True,
         )[0]
 
-        #path_lengths = (grad ** 2).sum(dim=1).mean().sqrt()
+        # path_lengths = (grad ** 2).sum(dim=1).mean().sqrt()
         path_lengths = torch.sqrt(grad.pow(2).sum(2).mean(1))
         path_lengths_mean = path_lengths.detach().mean()
 
@@ -58,3 +58,7 @@ print(plr(w, None, imgs))
 print(plr(w, None, imgs))
 print(plr(w, None, imgs))
 print(plr(w, None, imgs))
+
+imgs = torch.randn((3, 3, 32, 32))
+
+print(imgs.shape[-1].item())
