@@ -10,14 +10,16 @@ import loss_regularizers.base
 class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
     def __init__(self,
                  context: PyTorchTrialContext,
+                 weight=1e3,
                  decay=0.01,
-                 first_step=100,
+                 first_step=3000,
                  lazy_regularization_interval: int = 16) -> None:
 
         super().__init__()
 
         self.__context = context
         self.__decay = decay
+        self.__weight = weight
         self.__moving_mean_path_length = None
         self.__lazy_regularization_interval = lazy_regularization_interval
         self.__steps = 0
@@ -47,7 +49,7 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
             else:
                 self.__moving_mean_path_length = path_lengths_mean
 
-            path_penalty = ((path_lengths - self.__moving_mean_path_length) ** 2).mean()
+            path_penalty = self.__weight * ((path_lengths - self.__moving_mean_path_length) ** 2).mean()
             self.__last_calculated_pp = path_penalty.clone().detach()
             self.__steps += 1
 
