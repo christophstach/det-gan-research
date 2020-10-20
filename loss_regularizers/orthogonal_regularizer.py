@@ -30,7 +30,7 @@ class OrthogonalRegularizer(loss_regularizers.base.LossRegularizer):
                         sym -= torch.eye(param_flat.shape[0], device=real_images[-1].device)
                         orthogonal_loss = orthogonal_loss + (self.regularization * sym.abs().sum())
 
-            self.i = self.i + 1
+            self.i = 1
             return orthogonal_loss
         else:
             self.i = self.i + 1

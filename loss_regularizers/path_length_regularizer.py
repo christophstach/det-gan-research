@@ -42,7 +42,7 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
 
             path_penalty = ((path_lengths - self.moving_mean_path_length) ** 2).mean()
 
-            self.i = self.i + 1
+            self.i = 1
             return path_penalty
         else:
             self.i = self.i + 1
