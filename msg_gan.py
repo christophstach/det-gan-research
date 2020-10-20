@@ -170,7 +170,7 @@ class MsgGANTrail(PyTorchTrial):
         for imgs in fixed_imgs:
             size = str(imgs.shape[-1])
             grid = make_grid(imgs)
-            self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}_epoch_{epoch_idx}', grid, batch_idx)
+            self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}', grid, batch_idx)
 
     def log_sample_images(self, batch_idx, epoch_idx):
         z = utils.sample_noise(self.num_log_images, self.latent_dimension)
@@ -180,7 +180,7 @@ class MsgGANTrail(PyTorchTrial):
         for imgs in sample_imgs:
             size = str(imgs.shape[-1])
             grid = make_grid(imgs)
-            self.logger.writer.add_image(f'generated_sample_images_{size}x{size}_epoch_{epoch_idx}', grid, batch_idx)
+            self.logger.writer.add_image(f'generated_sample_images_{size}x{size}', grid, batch_idx)
 
     def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
         for [z1] in data_loader:

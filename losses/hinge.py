@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 
 import losses.base
 
@@ -22,5 +21,3 @@ class Hinge(losses.base.Loss):
         loss = fake_loss.mean()
 
         return loss
-
-

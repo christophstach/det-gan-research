@@ -20,33 +20,33 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
 
         super().__init__()
 
-        self.__context = context
-        self.__discriminator = discriminator
-        self.__center = center
-        self.__coefficient = coefficient
-        self.__power = power
-        self.__norm_type = norm_type
-        self.__penalty_type = penalty_type
-        self.__lazy_regularization_interval = lazy_regularization_interval
-        self.__steps = 0
-        self.__last_calculated_gp = None
+        self.context = context
+        self.discriminator = discriminator
+        self.center = center
+        self.coefficient = coefficient
+        self.power = power
+        self.norm_type = norm_type
+        self.penalty_type = penalty_type
+        self.lazy_regularization_interval = lazy_regularization_interval
+        self.steps = 0
+        self.last_calculated_gp = None
 
     def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
-        if self.__steps % self.__lazy_regularization_interval:
+        if self.coefficient > 0.0 and self.steps % self.lazy_regularization_interval:
             real_images = real_images[-1]
             fake_images = fake_images[-1]
 
             alpha = torch.rand(real_images.shape[0], 1, 1, 1)
-            alpha = self.__context.to_device(alpha)
+            alpha = self.context.to_device(alpha)
 
             interpolates = alpha * real_images + (1 - alpha) * fake_images
             interpolates.requires_grad_(True)
 
             interpolates = utils.to_scaled_images(interpolates, real_images.shape[-1])
-            interpolates_validity = self.__discriminator(interpolates)
+            interpolates_validity = self.discriminator(interpolates)
 
             ones = torch.ones_like(interpolates_validity)
-            ones = self.__context.to_device(ones)
+            ones = self.context.to_device(ones)
 
             inputs_gradients = torch.autograd.grad(
                 outputs=interpolates_validity,
@@ -61,27 +61,27 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
             ]
             gradients = torch.cat(inputs_gradients, dim=1)
 
-            if self.__norm_type == "l1":
+            if self.norm_type == "l1":
                 gradients_norm = gradients.norm(1, dim=1)
-            elif self.__norm_type == "l2":
+            elif self.norm_type == "l2":
                 gradients_norm = gradients.norm(2, dim=1)
-            elif self.__norm_type == "linf":
+            elif self.norm_type == "linf":
                 gradients_norm, _ = torch.max(torch.abs(gradients), dim=1)
             else:
                 raise NotImplementedError()
 
-            if self.__penalty_type == "ls":
-                penalties = (gradients_norm - self.__center) ** self.__power
-            elif self.__penalty_type == "hinge":
-                penalties = torch.relu(gradients_norm - self.__center) ** self.__power
+            if self.penalty_type == "ls":
+                penalties = (gradients_norm - self.center) ** self.power
+            elif self.penalty_type == "hinge":
+                penalties = torch.relu(gradients_norm - self.center) ** self.power
             else:
                 raise NotImplementedError()
 
-            gp = self.__coefficient * penalties.mean()
-            self.__last_calculated_gp = gp.clone().detach()
-            self.__steps += 1
+            gp = self.coefficient * penalties.mean()
+            self.last_calculated_gp = gp.clone().detach()
+            self.steps += 1
 
             return gp
         else:
-            self.__steps += 1
-            return self.__last_calculated_gp
+            self.steps += 1
+            return self.last_calculated_gp
