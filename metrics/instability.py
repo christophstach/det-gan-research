@@ -20,7 +20,7 @@ class Instability(Metric):
 
     def __call__(self):
         if len(self.__last_data) == 0:
-            return math.inf
+            return 0
         elif len(self.__last_data) == len(self.__current_data):
             stabilities = [
                 F.l1_loss(last_batch, current_batch)
