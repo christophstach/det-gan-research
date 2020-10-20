@@ -85,7 +85,11 @@ class MsgGANTrail(PyTorchTrial):
         gp = self.gradient_penalty(w, scaled_real_images, scaled_fake_images)
         d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
-        self.context.backward(d_loss + gp)
+        if gp is not None:
+            self.context.backward(d_loss + gp)
+        else:
+            self.context.backward(d_loss)
+
         self.context.step_optimizer(self.opt_d)
 
         return d_loss, gp
@@ -101,7 +105,11 @@ class MsgGANTrail(PyTorchTrial):
         plr = self.path_length_regularizer(w, scaled_real_images, scaled_fake_images)
         g_loss = self.loss.generator_loss(real_validity, fake_validity)
 
-        self.context.backward(g_loss + plr)
+        if plr is not None:
+            self.context.backward(g_loss + plr)
+        else:
+            self.context.backward(g_loss)
+
         self.context.step_optimizer(self.opt_g)
 
         return g_loss, plr
@@ -115,12 +123,18 @@ class MsgGANTrail(PyTorchTrial):
         d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
         g_loss, plr = self.optimize_generator(z, scaled_real_images)
 
-        return {
-            "loss": d_loss + gp,
+        logs = {
+            "loss": d_loss,
             "g_loss": g_loss,
             "d_loss": d_loss,
             "gp": gp,
             "plr": plr
+        }
+
+        return {
+            key: logs[key]
+            for key in logs
+            if logs[key] is not None
         }
 
     def build_training_data_loader(self) -> DataLoader:
@@ -169,9 +183,9 @@ class MsgGANTrail(PyTorchTrial):
         self.logger.writer.add_image(f'generated_sample_images', grid)
 
         return {
-            '128x128_instability': {
+            **{
                 f'{size}x{size}_instability': instability
                 for size, instability
                 in zip(self.img_sizes, instabilities)
-            }['128x128_instability']
+            }
         }

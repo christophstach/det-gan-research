@@ -34,4 +34,4 @@ class OrthogonalRegularizer(loss_regularizers.base.LossRegularizer):
             return orthogonal_loss
         else:
             self.i = self.i + 1
-            return 0.0
+            return None

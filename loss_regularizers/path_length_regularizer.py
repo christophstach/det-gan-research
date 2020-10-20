@@ -46,4 +46,4 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
             return path_penalty
         else:
             self.i = self.i + 1
-            return 0.0
+            return None
