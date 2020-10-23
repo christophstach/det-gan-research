@@ -35,6 +35,7 @@ class MsgGANTrail(PyTorchTrial):
         self.image_size = self.context.get_hparam("image_size")
         self.image_channels = self.context.get_hparam("image_channels")
         self.latent_dimension = self.context.get_hparam("latent_dimension")
+        self.normalize_latent = self.context.get_hparam("normalize_latent")
         self.num_log_images = 6
         self.log_images_interval = 1000
 
@@ -120,7 +121,7 @@ class MsgGANTrail(PyTorchTrial):
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_imgs, _ = batch
         scaled_real_images = utils.to_scaled_images(real_imgs, self.image_size)
-        z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
+        z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension, normalize=self.normalize_latent)
         z = self.context.to_device(z)
 
         d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
@@ -153,7 +154,11 @@ class MsgGANTrail(PyTorchTrial):
         )
 
     def build_validation_data_loader(self) -> DataLoader:
-        validation_data = ds.noise(self.context.get_per_slot_batch_size(), [self.latent_dimension])
+        validation_data = ds.noise(
+            length=self.context.get_per_slot_batch_size(),
+            noise_size=self.latent_dimension,
+            normalize=self.normalize_latent
+        )
 
         return DataLoader(
             validation_data,
@@ -163,7 +168,7 @@ class MsgGANTrail(PyTorchTrial):
 
     def log_fixed_images(self, batch_idx, epoch_idx):
         if self.fixed_z is None:
-            self.fixed_z = utils.sample_noise(self.num_log_images, self.latent_dimension)
+            self.fixed_z = utils.sample_noise(self.num_log_images, self.latent_dimension, normalize=self.normalize_latent)
             self.fixed_z = self.context.to_device(self.fixed_z)
 
         fixed_imgs, _ = self.generator(self.fixed_z)
@@ -173,7 +178,7 @@ class MsgGANTrail(PyTorchTrial):
             self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}', grid, batch_idx)
 
     def log_sample_images(self, batch_idx, epoch_idx):
-        z = utils.sample_noise(self.num_log_images, self.latent_dimension)
+        z = utils.sample_noise(self.num_log_images, self.latent_dimension, normalize=self.normalize_latent)
         z = self.context.to_device(z)
 
         sample_imgs, _ = self.generator(z)
