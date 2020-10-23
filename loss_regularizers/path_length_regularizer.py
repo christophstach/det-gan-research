@@ -10,9 +10,9 @@ import loss_regularizers.base
 class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
     def __init__(self,
                  context: PyTorchTrialContext,
-                 coefficient: float = 0.0,
+                 coefficient: float = 1.0,
                  decay=0.01,
-                 first_step=3000,
+                 first_step=5000,
                  lazy_regularization_interval: int = 16) -> None:
 
         super().__init__()

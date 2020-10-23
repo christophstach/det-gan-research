@@ -10,7 +10,7 @@ from torchvision.utils import make_grid
 import datasets as ds
 import utils
 from loss_regularizers import GradientPenalty, PathLengthRegularizer
-from losses import WGAN
+from losses import RaHinge, RaLSGAN, WGAN
 from metrics import Instability
 from models import MsgDiscriminator, MsgGenerator
 from utils.types import TorchData
@@ -64,7 +64,7 @@ class MsgGANTrail(PyTorchTrial):
         self.opt_g = self.context.wrap_optimizer(optim.Adam(self.generator.parameters(), lr=lr, betas=(b1, b2)))
         self.opt_d = self.context.wrap_optimizer(optim.Adam(self.discriminator.parameters(), lr=lr, betas=(b1, b2)))
 
-        self.loss = WGAN()
+        self.loss = RaHinge()
         self.gradient_penalty = GradientPenalty(self.context, self.discriminator)
         self.path_length_regularizer = PathLengthRegularizer(self.context)
 
