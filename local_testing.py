@@ -46,19 +46,26 @@ class PathLengthRegularizer():
 dataset = ds.mnist(True, 32, 3, root=".datasets")
 loader = DataLoader(dataset, batch_size=4)
 
-z = torch.rand(4, 128)
+z = torch.rand(4, 256)
 
-generator = MsgGenerator(2, 16, 16, 32, 3, 128, True)
-discriminator = MsgDiscriminator(2, 16, 16, 32, 3, True)
+generator = MsgGenerator(
+    image_channels=3,
+    latent_dimension=256,
+    min_filters=0,
+    max_filters=256,
+    filter_multiplier=16,
+    image_size=128,
+    spectral_normalization=True
+)
+discriminator = MsgDiscriminator(
+    image_channels=3,
+    spectral_normalization=True,
+    min_filters=0,
+    max_filters=256,
+    filter_multiplier=4,
+    image_size=128
+)
 
 imgs, w = generator(z)
 plr = PathLengthRegularizer()
-
-print(plr(w, None, imgs))
-print(plr(w, None, imgs))
-print(plr(w, None, imgs))
-print(plr(w, None, imgs))
-
-imgs = torch.randn((3, 3, 32, 32))
-
-print(imgs.shape[-1].item())
+print(discriminator)

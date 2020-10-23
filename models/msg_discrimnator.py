@@ -47,24 +47,28 @@ class MsgDiscriminator(torch.nn.Module):
                         discriminator_filters[i + 1]
                     )
                 )
+
+                self.from_rgb_combiners.append(
+                    l.LinCatFromRgbCombiner(image_channels=image_channels, channels=discriminator_filters[i + 1])
+                )
             elif i < len(discriminator_filters) - 1:
                 self.blocks.append(
                     l.MsgDiscriminatorIntermediateBlock(
-                        discriminator_filters[i] + image_channels,
+                        discriminator_filters[i] * 2,
                         discriminator_filters[i + 1]
                     )
+                )
+
+                self.from_rgb_combiners.append(
+                    l.LinCatFromRgbCombiner(image_channels=image_channels, channels=discriminator_filters[i + 1])
                 )
             else:
                 self.blocks.append(
                     l.MsgDiscriminatorLastBlock(
-                        discriminator_filters[i] + image_channels,
+                        discriminator_filters[i] * 2,
                         1
                     )
                 )
-
-            self.from_rgb_combiners.append(
-                l.SimpleFromRgbCombiner()
-            )
 
         if spectral_normalization:
             for block in self.blocks:

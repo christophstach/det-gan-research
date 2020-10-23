@@ -8,8 +8,6 @@ class MsgGeneratorFirstBlock(nn.Module):
     def __init__(self, in_channels, bias=False):
         super().__init__()
 
-        self.normLatent = l.PixelNorm()
-
         self.conv1 = nn.ConvTranspose2d(
             in_channels,
             in_channels,
@@ -18,8 +16,6 @@ class MsgGeneratorFirstBlock(nn.Module):
             padding=0,
             bias=bias
         )
-
-        self.norm1 = l.PixelNorm()
 
         self.conv2 = nn.Conv2d(
             in_channels,
@@ -30,18 +26,14 @@ class MsgGeneratorFirstBlock(nn.Module):
             bias=bias
         )
 
-        self.norm2 = l.PixelNorm()
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.pixelNorm = l.PixelNorm()
 
     def forward(self, x):
-        x = self.normLatent(x)
+        x = self.leakyRelu(self.conv1(x))
+        x = self.leakyRelu(self.conv2(x))
 
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm1(x)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm2(x)
+        x = self.pixelNorm(x)
 
         return x
 
@@ -59,8 +51,6 @@ class MsgGeneratorIntermediateBlock(nn.Module):
             bias=bias
         )
 
-        self.norm1 = l.PixelNorm()
-
         self.conv2 = nn.Conv2d(
             out_channels,
             out_channels,
@@ -70,7 +60,8 @@ class MsgGeneratorIntermediateBlock(nn.Module):
             bias=bias
         )
 
-        self.norm2 = l.PixelNorm()
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.pixelNorm = l.PixelNorm()
 
     def forward(self, x):
         x = F.interpolate(
@@ -83,13 +74,8 @@ class MsgGeneratorIntermediateBlock(nn.Module):
             align_corners=False
         )
 
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm1(x)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm2(x)
+        x = self.pixelNorm(self.leakyRelu(self.conv1(x)))
+        x = self.pixelNorm(self.leakyRelu(self.conv2(x)))
 
         return x
 
@@ -107,8 +93,6 @@ class MsgGeneratorLastBlock(nn.Module):
             bias=bias
         )
 
-        self.norm1 = l.PixelNorm()
-
         self.conv2 = nn.Conv2d(
             out_channels,
             out_channels,
@@ -118,7 +102,8 @@ class MsgGeneratorLastBlock(nn.Module):
             bias=bias
         )
 
-        self.norm2 = l.PixelNorm()
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.pixelNorm = l.PixelNorm()
 
     def forward(self, x):
         x = F.interpolate(
@@ -131,12 +116,7 @@ class MsgGeneratorLastBlock(nn.Module):
             align_corners=False
         )
 
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm1(x)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-        x = self.norm2(x)
+        x = self.pixelNorm(self.leakyRelu(self.conv1(x)))
+        x = self.pixelNorm(self.leakyRelu(self.conv2(x)))
 
         return x

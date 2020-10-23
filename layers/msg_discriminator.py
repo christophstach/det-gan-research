@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 import layers as l
 
@@ -27,14 +26,12 @@ class MsgDiscriminatorFirstBlock(nn.Module):
             bias=bias
         )
 
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
         self.avgPool = nn.AvgPool2d(2, 2)
 
     def forward(self, x):
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
+        x = self.leakyRelu(self.conv1(x))
+        x = self.leakyRelu(self.conv2(x))
 
         x = self.avgPool(x)
 
@@ -63,14 +60,12 @@ class MsgDiscriminatorIntermediateBlock(nn.Module):
             bias=bias
         )
 
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
         self.avgPool = nn.AvgPool2d(2, 2)
 
     def forward(self, x):
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
+        x = self.leakyRelu(self.conv1(x))
+        x = self.leakyRelu(self.conv2(x))
 
         x = self.avgPool(x)
 
@@ -110,18 +105,17 @@ class MsgDiscriminatorLastBlock(nn.Module):
             bias=bias
         )
 
+        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+
     def forward(self, x):
         x = self.miniBatchStdDev(x)
 
-        x = self.conv1(x)
-        F.leaky_relu(x, 0.2, inplace=True)
-
-        x = self.conv2(x)
-        F.leaky_relu(x, 0.2, inplace=True)
+        x = self.leakyRelu(self.conv1(x))
+        x = self.leakyRelu(self.conv2(x))
 
         x = self.validator(x)
 
-        return x
+        return x.view(-1)
 
 
 class SimpleFromRgbCombiner(nn.Module):
@@ -133,12 +127,12 @@ class SimpleFromRgbCombiner(nn.Module):
 
 
 class LinCatFromRgbCombiner(nn.Module):
-    def __init__(self, image_channels, bias=False):
+    def __init__(self, image_channels, channels, bias=False):
         super().__init__()
 
         self.conv = nn.Conv2d(
             in_channels=image_channels,
-            out_channels=image_channels,
+            out_channels=channels,
             kernel_size=1,
             stride=1,
             padding=0,
@@ -147,7 +141,6 @@ class LinCatFromRgbCombiner(nn.Module):
 
     def forward(self, x1, x2):
         x1 = self.conv(x1)
-        x1 = F.leaky_relu(x1, 0.2, inplace=True)
 
         return torch.cat([x1, x2], dim=1)
 
@@ -155,8 +148,6 @@ class LinCatFromRgbCombiner(nn.Module):
 class CatLinFromRgbCombiner(nn.Module):
     def __init__(self, image_channels, channels, bias=False):
         super().__init__()
-
-        self.in_channels = channels
 
         self.conv = nn.Conv2d(
             in_channels=channels + image_channels,
@@ -170,6 +161,5 @@ class CatLinFromRgbCombiner(nn.Module):
     def forward(self, x1, x2):
         x = torch.cat([x1, x2], dim=1)
         x = self.conv(x)
-        x = F.leaky_relu(x, 0.2, inplace=True)
 
         return x

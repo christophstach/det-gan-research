@@ -3,3 +3,4 @@
 .git
 .datasets
 *.pyc
+checkpoints
