@@ -3,3 +3,4 @@
 .datasets
 *.pyc
 checkpoints
+.ipynb_checkpoints

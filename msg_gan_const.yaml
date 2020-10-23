@@ -22,7 +22,7 @@ hyperparameters:
   max_filters: 512
   spectral_normalization: true
 
-  normalize_latent: false
+  normalize_latent: true
   latent_dimension: 256
   image_size: 128
   image_channels: 3

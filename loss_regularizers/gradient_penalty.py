@@ -31,26 +31,31 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
         self.steps = 0
         self.last_calculated_gp = None
 
+    def interpolate(self, real_image, fake_image, alpha):
+        interpolation = alpha * real_image + (1- alpha ) * fake_image
+        interpolation.requires_grad_(True)
+
+        return interpolation
+
     def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
         if self.coefficient > 0.0 and self.steps % self.lazy_regularization_interval:
-            real_images = real_images[-1]
-            fake_images = fake_images[-1]
-
-            alpha = torch.rand(real_images.shape[0], 1, 1, 1)
+            alpha = torch.rand(real_images[0].shape[0], 1, 1, 1)
             alpha = self.context.to_device(alpha)
 
-            interpolates = alpha * real_images + (1 - alpha) * fake_images
-            interpolates.requires_grad_(True)
+            interpolations = [
+                self.interpolate(real_image, fake_image, alpha)
+                for real_image, fake_image
+                in zip(real_images, fake_images)
+            ]
 
-            interpolates = utils.to_scaled_images(interpolates, real_images.shape[-1])
-            interpolates_validity = self.discriminator(interpolates)
+            interpolates_validity = self.discriminator(interpolations)
 
             ones = torch.ones_like(interpolates_validity)
             ones = self.context.to_device(ones)
 
             inputs_gradients = torch.autograd.grad(
                 outputs=interpolates_validity,
-                inputs=interpolates,
+                inputs=interpolations,
                 grad_outputs=ones,
                 create_graph=True
             )
