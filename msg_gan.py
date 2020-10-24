@@ -161,7 +161,7 @@ class MsgGANTrail(PyTorchTrial):
             self.log_sample_images(batch_idx, epoch_idx)
 
         logs = {
-            "loss": d_loss,
+            "loss": d_loss + gp,
             "g_loss": g_loss,
             "d_loss": d_loss,
             "gp": gp,

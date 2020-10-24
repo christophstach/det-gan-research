@@ -46,7 +46,6 @@ class MsgGenerator(nn.Module):
                 for g_filter in generator_filters
             ]
 
-        # TODO check this hier
         generator_filters[0] = latent_dimension
 
         for i, _ in enumerate(generator_filters):
