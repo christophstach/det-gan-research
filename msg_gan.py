@@ -1,6 +1,6 @@
-import math
 from typing import Any, Dict
 
+import math
 import torch
 import torch.optim as optim
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
@@ -10,7 +10,7 @@ from torchvision.utils import make_grid
 import datasets as ds
 import utils
 from loss_regularizers import GradientPenalty, PathLengthRegularizer
-from losses import RaHinge, RaLSGAN, WGAN
+from losses import RaHinge, RaLSGAN, WGAN, RaSGAN
 from metrics import Instability
 from models import MsgDiscriminator, MsgGenerator
 from utils.types import TorchData
@@ -23,9 +23,14 @@ class MsgGANTrail(PyTorchTrial):
         self.context = context
         self.logger = TorchWriter()
 
-        lr = self.context.get_hparam("lr")
-        b1 = self.context.get_hparam("b1")
-        b2 = self.context.get_hparam("b2")
+        self.lr = self.context.get_hparam("lr")
+        self.b1 = self.context.get_hparam("b1")
+        self.b2 = self.context.get_hparam("b2")
+
+        optimizer = self.context.get_hparam("optimizer")
+        loss_fn = self.context.get_hparam("loss_fn")
+        gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
+        path_length_regularizer_coefficient = self.context.get_hparam("path_length_regularizer_coefficient")
 
         filter_multiplier = self.context.get_hparam("filter_multiplier")
         min_filters = self.context.get_hparam("min_filters")
@@ -62,12 +67,19 @@ class MsgGANTrail(PyTorchTrial):
             )
         )
 
-        self.opt_g = self.context.wrap_optimizer(optim.Adam(self.generator.parameters(), lr=lr, betas=(b1, b2)))
-        self.opt_d = self.context.wrap_optimizer(optim.Adam(self.discriminator.parameters(), lr=lr, betas=(b1, b2)))
+        self.opt_g = self.context.wrap_optimizer(self.create_optimizer(optimizer, self.generator.parameters()))
+        self.opt_d = self.context.wrap_optimizer(self.create_optimizer(optimizer, self.discriminator.parameters()))
+        self.loss = self.create_loss_fn(loss_fn)
 
-        self.loss = RaHinge()
-        self.gradient_penalty = GradientPenalty(self.context, self.discriminator)
-        self.path_length_regularizer = PathLengthRegularizer(self.context)
+        self.gradient_penalty = GradientPenalty(
+            self.context,
+            self.discriminator,
+            coefficient=gradient_penalty_coefficient
+        )
+        self.path_length_regularizer = PathLengthRegularizer(
+            self.context,
+            coefficient=path_length_regularizer_coefficient
+        )
 
         self.img_sizes = [
             2 ** (x + 1)
@@ -75,7 +87,24 @@ class MsgGANTrail(PyTorchTrial):
         ]
 
         self.fixed_z = None
-        self.instability_metrics = [Instability() for _ in self.img_sizes]
+        self.instability_metrices = [Instability() for _ in self.img_sizes]
+
+    def create_loss_fn(self, loss_fn):
+        loss_fn_dict = {
+            'WGAN': lambda: WGAN(),
+            'RaHinge': lambda: RaHinge(),
+            'RaLSGAN': lambda: RaLSGAN(),
+            'RaSGAN': lambda: RaSGAN()
+        }
+
+        return loss_fn_dict[loss_fn]()
+
+    def create_optimizer(self, optimizer, parameters):
+        optimizer_dict = {
+            'Adam': lambda: optim.Adam(parameters, lr=self.lr, betas=(self.b1, self.b2))
+        }
+
+        return optimizer_dict[optimizer]()
 
     def optimize_discriminator(self, z, scaled_real_images):
         self.generator.requires_grad_(False)
@@ -168,7 +197,8 @@ class MsgGANTrail(PyTorchTrial):
 
     def log_fixed_images(self, batch_idx, epoch_idx):
         if self.fixed_z is None:
-            self.fixed_z = utils.sample_noise(self.num_log_images, self.latent_dimension, normalize=self.normalize_latent)
+            self.fixed_z = utils.sample_noise(self.num_log_images, self.latent_dimension,
+                                              normalize=self.normalize_latent)
             self.fixed_z = self.context.to_device(self.fixed_z)
 
         fixed_imgs, _ = self.generator(self.fixed_z)
@@ -192,12 +222,12 @@ class MsgGANTrail(PyTorchTrial):
             z1 = self.context.to_device(z1)
             generated_fixed_imgs, _ = self.generator(z1)
 
-            for generated_fixed_img, instability_metric in zip(generated_fixed_imgs, self.instability_metrics):
+            for generated_fixed_img, instability_metric in zip(generated_fixed_imgs, self.instability_metrices):
                 instability_metric.add_batch(generated_fixed_img)
 
-        instabilities = [instability_metric() for instability_metric in self.instability_metrics]
+        instabilities = [instability_metric() for instability_metric in self.instability_metrices]
 
-        for instability_metric in self.instability_metrics:
+        for instability_metric in self.instability_metrices:
             instability_metric.step()
 
         return {

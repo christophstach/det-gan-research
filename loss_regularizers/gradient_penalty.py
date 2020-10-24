@@ -4,7 +4,6 @@ import torch
 from determined.pytorch import PyTorchTrialContext
 
 import loss_regularizers.base
-import utils
 
 
 class GradientPenalty(loss_regularizers.base.LossRegularizer):
@@ -32,7 +31,7 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
         self.last_calculated_gp = None
 
     def interpolate(self, real_image, fake_image, alpha):
-        interpolation = alpha * real_image + (1- alpha ) * fake_image
+        interpolation = alpha * real_image + (1 - alpha) * fake_image
         interpolation.requires_grad_(True)
 
         return interpolation

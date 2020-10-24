@@ -1,6 +1,6 @@
-import math
 from typing import List, Tuple
 
+import math
 import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm
@@ -20,9 +20,9 @@ class MsgGenerator(nn.Module):
 
         super().__init__()
 
-        self.w_network = nn.Sequential(
-            nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
-        )
+        # self.w_network = nn.Sequential(
+        #    nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
+        # )
 
         self.blocks = torch.nn.ModuleList()
         self.to_rgb_converters = torch.nn.ModuleList()
@@ -90,7 +90,8 @@ class MsgGenerator(nn.Module):
         outputs = []
 
         z = z.view(z.shape[0], -1, 1, 1)
-        w = self.w_network(z)
+        # w = self.w_network(z)
+        w = z
         x = w
 
         for block, to_rgb in zip(self.blocks, self.to_rgb_converters):

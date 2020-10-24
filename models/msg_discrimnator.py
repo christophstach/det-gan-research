@@ -40,6 +40,9 @@ class MsgDiscriminator(torch.nn.Module):
             ]
 
         for i, _ in enumerate(discriminator_filters):
+            simple_from_rgb_combiner = False
+            additional_filters = 3 if simple_from_rgb_combiner else discriminator_filters[i]
+
             if i == 0:
                 self.blocks.append(
                     l.MsgDiscriminatorFirstBlock(
@@ -54,7 +57,7 @@ class MsgDiscriminator(torch.nn.Module):
             elif i < len(discriminator_filters) - 1:
                 self.blocks.append(
                     l.MsgDiscriminatorIntermediateBlock(
-                        discriminator_filters[i] * 2,
+                        discriminator_filters[i] + additional_filters,
                         discriminator_filters[i + 1]
                     )
                 )
@@ -65,7 +68,7 @@ class MsgDiscriminator(torch.nn.Module):
             else:
                 self.blocks.append(
                     l.MsgDiscriminatorLastBlock(
-                        discriminator_filters[i] * 2,
+                        discriminator_filters[i] + additional_filters,
                         1
                     )
                 )

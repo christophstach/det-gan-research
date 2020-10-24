@@ -13,17 +13,23 @@ resources:
 
 hyperparameters:
   global_batch_size: 32
+
+  loss_fn: WGAN
+  optimizer: Adam
   lr: 0.0003
   b1: 0.5
   b2: 0.999
 
+  path_length_regularizer_coefficient: 0.0
+  gradient_penalty_coefficient: 10.0
+
   filter_multiplier: 4
   min_filters: 0
-  max_filters: 512
-  spectral_normalization: true
-
-  normalize_latent: true
+  max_filters: 256
   latent_dimension: 256
+
+  spectral_normalization: true
+  normalize_latent: true
   image_size: 128
   image_channels: 3
 
