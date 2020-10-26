@@ -27,16 +27,16 @@ class MsgGANTrail(PyTorchTrial):
         self.b1 = self.context.get_hparam("b1")
         self.b2 = self.context.get_hparam("b2")
 
-        optimizer = self.context.get_hparam("optimizer")
-        loss_fn = self.context.get_hparam("loss_fn")
-        gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
-        path_length_regularizer_coefficient = self.context.get_hparam("path_length_regularizer_coefficient")
-        ema = self.context.get_hparam("ema")
-        ema_decay = self.context.get_hparam("ema_decay")
+        self.optimizer = self.context.get_hparam("optimizer")
+        self.loss_fn = self.context.get_hparam("loss_fn")
+        self.gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
+        self.path_length_regularizer_coefficient = self.context.get_hparam("path_length_regularizer_coefficient")
+        self.ema = self.context.get_hparam("ema")
+        self.ema_decay = self.context.get_hparam("ema_decay")
 
-        filter_multiplier = self.context.get_hparam("filter_multiplier")
-        min_filters = self.context.get_hparam("min_filters")
-        max_filters = self.context.get_hparam("max_filters")
+        self.filter_multiplier = self.context.get_hparam("filter_multiplier")
+        self.min_filters = self.context.get_hparam("min_filters")
+        self.max_filters = self.context.get_hparam("max_filters")
         spectral_normalization = self.context.get_hparam("spectral_normalization")
 
         self.image_size = self.context.get_hparam("image_size")
@@ -47,9 +47,9 @@ class MsgGANTrail(PyTorchTrial):
         self.log_images_interval = 1000
 
         generator_model = MsgGenerator(
-            filter_multiplier=filter_multiplier,
-            min_filters=min_filters,
-            max_filters=max_filters,
+            filter_multiplier=self.filter_multiplier,
+            min_filters=self.min_filters,
+            max_filters=self.max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
@@ -57,32 +57,32 @@ class MsgGANTrail(PyTorchTrial):
         )
 
         discriminator_model = MsgDiscriminator(
-            filter_multiplier=filter_multiplier,
-            min_filters=min_filters,
-            max_filters=max_filters,
+            filter_multiplier=self.filter_multiplier,
+            min_filters=self.min_filters,
+            max_filters=self.max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
             spectral_normalization=spectral_normalization
         )
 
-        generator_model = ExponentialMovingAverage(generator_model, ema_decay) if ema else generator_model
+        generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
 
         self.generator = self.context.wrap_model(generator_model)
         self.discriminator = self.context.wrap_model(discriminator_model)
 
-        self.opt_g = self.context.wrap_optimizer(self.create_optimizer(optimizer, self.generator.parameters()))
-        self.opt_d = self.context.wrap_optimizer(self.create_optimizer(optimizer, self.discriminator.parameters()))
-        self.loss = self.create_loss_fn(loss_fn)
+        self.opt_g = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.generator.parameters()))
+        self.opt_d = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.discriminator.parameters()))
+        self.loss = self.create_loss_fn(self.loss_fn)
 
         self.gradient_penalty = GradientPenalty(
             self.context,
             self.discriminator,
-            coefficient=gradient_penalty_coefficient
+            coefficient=self.gradient_penalty_coefficient
         )
 
         self.path_length_regularizer = PathLengthRegularizer(
             self.context,
-            coefficient=path_length_regularizer_coefficient
+            coefficient=self.path_length_regularizer_coefficient
         )
 
         self.img_sizes = [
@@ -149,6 +149,9 @@ class MsgGANTrail(PyTorchTrial):
 
         self.context.step_optimizer(self.opt_g)
 
+        if self.ema:
+            self.generator.update()
+
         return g_loss, plr
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
@@ -200,6 +203,8 @@ class MsgGANTrail(PyTorchTrial):
         )
 
     def log_fixed_images(self, batch_idx, epoch_idx):
+        self.generator.eval()
+
         if self.fixed_z is None:
             self.fixed_z = utils.sample_noise(
                 self.num_log_images,
@@ -215,7 +220,11 @@ class MsgGANTrail(PyTorchTrial):
             grid = make_grid(imgs)
             self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}', grid, batch_idx)
 
+        self.generator.train()
+
     def log_sample_images(self, batch_idx, epoch_idx):
+        self.generator.eval()
+
         z = utils.sample_noise(
             self.num_log_images,
             self.latent_dimension,
@@ -230,7 +239,11 @@ class MsgGANTrail(PyTorchTrial):
             grid = make_grid(imgs)
             self.logger.writer.add_image(f'generated_sample_images_{size}x{size}', grid, batch_idx)
 
+        self.generator.train()
+
     def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
+        self.generator.eval()
+
         for [z1] in data_loader:
             z1 = self.context.to_device(z1)
             generated_fixed_imgs, _ = self.generator(z1)
@@ -243,6 +256,8 @@ class MsgGANTrail(PyTorchTrial):
         for instability_metric in self.instability_metrices:
             instabilities.append(instability_metric())
             instability_metric.step()
+
+        self.generator.train()
 
         return {
             **{

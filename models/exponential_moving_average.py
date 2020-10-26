@@ -45,8 +45,8 @@ class ExponentialMovingAverage(nn.Module):
             # buffers are copied
             shadow_buffers[name].copy_(buffer)
 
-    def forward(self, inputs: torch.Tensor, return_feature: bool = False) -> torch.Tensor:
+    def forward(self, z: torch.Tensor) -> torch.Tensor:
         if self.training:
-            return self.model(inputs, return_feature)
+            return self.model(z)
         else:
-            return self.shadow(inputs, return_feature)
+            return self.shadow(z)
