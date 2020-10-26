@@ -1,2 +1,3 @@
+from .exponential_moving_average import ExponentialMovingAverage
 from .msg_discrimnator import MsgDiscriminator
 from .msg_generator import MsgGenerator

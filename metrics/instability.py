@@ -1,7 +1,7 @@
-from .base import Metric
 import torch
 import torch.nn.functional as F
-import math
+
+from .base import Metric
 
 
 class Instability(Metric):
@@ -14,7 +14,7 @@ class Instability(Metric):
     def add_batch(self, batch):
         self.__current_data.append(batch)
 
-    def step(self):
+    def step(self) -> None:
         self.__last_data = self.__current_data
         self.__current_data = []
 
@@ -22,12 +22,12 @@ class Instability(Metric):
         if len(self.__last_data) == 0:
             return 0
         elif len(self.__last_data) == len(self.__current_data):
-            stabilities = [
-                F.l1_loss(last_batch, current_batch)
+            instabilities = [
+                F.mse_loss(last_batch, current_batch)
                 for last_batch, current_batch
                 in zip(self.__last_data, self.__current_data)
             ]
 
-            return torch.mean(torch.tensor(stabilities)).item()
+            return torch.mean(torch.tensor(instabilities)).item()
         else:
             raise ValueError("Size of last_data and current_data is not equal")

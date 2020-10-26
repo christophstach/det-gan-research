@@ -28,6 +28,8 @@ hyperparameters:
   max_filters: 256
   latent_dimension: 256
 
+  ema: true
+  ema_decay: 0.999
   spectral_normalization: true
   normalize_latent: true
   image_size: 128
