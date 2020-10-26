@@ -7,14 +7,22 @@ records_per_epoch: 30000 # for celebAHQ
 min_validation_period:
   batches: 500
 
+min_checkpoint_period:
+  batches: 500
+
 resources:
   slots_per_trial: 1
   agent_label: dt-cluster
 
+checkpoint_storage:
+  save_trial_best: 1
+  save_trial_latest: 5
+  save_experiment_best: 1
+
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: WGAN
+  loss_fn: RaLSGAN
   optimizer: Adam
   lr: 0.0003
   b1: 0.5

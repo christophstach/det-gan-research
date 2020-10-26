@@ -3,4 +3,5 @@ determined-cli==0.13.6
 determined-deploy==0.13.6
 torch==1.6.0
 torchvision==0.7.0
-jupyterlab==2.2.8
+jupyterlab==2.2.9
+tensorboard==2.3.0

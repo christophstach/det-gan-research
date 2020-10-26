@@ -5,6 +5,7 @@ import math
 
 import datasets as ds
 from models import MsgGenerator, MsgDiscriminator
+from determined.experimental import Checkpoint
 
 
 class PathLengthRegularizer():
