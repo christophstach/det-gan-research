@@ -67,6 +67,6 @@ discriminator = MsgDiscriminator(
     image_size=128
 )
 
-imgs, w = generator(z)
-plr = PathLengthRegularizer()
-print(discriminator)
+from distributions import TruncatedNormal
+
+dist = TruncatedNormal(0, 1, -2, 2)

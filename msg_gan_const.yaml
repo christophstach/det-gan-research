@@ -8,7 +8,7 @@ min_validation_period:
   batches: 500
 
 min_checkpoint_period:
-  batches: 500
+  epochs: 5
 
 resources:
   slots_per_trial: 1
@@ -22,7 +22,7 @@ checkpoint_storage:
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: RaLSGAN
+  loss_fn: RaSGAN
   optimizer: Adam
   lr: 0.0003
   b1: 0.5
@@ -39,7 +39,6 @@ hyperparameters:
   ema: true
   ema_decay: 0.999
   spectral_normalization: true
-  normalize_latent: true
   image_size: 128
   image_channels: 3
 
@@ -52,8 +51,8 @@ searcher:
 
 environment:
   image:
-    cpu: "deepprojects/determined-pytorch-1.6-tf-2.2-cpu"
-    gpu: "deepprojects/determined-cuda-10.1-pytorch-1.6-tf-2.2-gpu"
+    cpu: "deepprojects/determined-pytorch-1.7-tf-2.2-cpu"
+    gpu: "deepprojects/determined-cuda-10.1-pytorch-1.7-tf-2.2-gpu"
 
 bind_mounts:
   - host_path: /data/ldap/stachc/datasets
