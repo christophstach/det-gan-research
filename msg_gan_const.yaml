@@ -22,14 +22,16 @@ checkpoint_storage:
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: RaSGAN
+  loss_fn: RaHinge
   optimizer: Adam
   lr: 0.0003
   b1: 0.5
   b2: 0.999
 
   path_length_regularizer_coefficient: 0.0
-  gradient_penalty_coefficient: 10.0
+  gradient_penalty_coefficient: 0.0
+  g_orthogonal_regularizer_coefficient: 1e-4
+  d_orthogonal_regularizer_coefficient: 0.0
 
   filter_multiplier: 4
   min_filters: 0
@@ -42,10 +44,12 @@ hyperparameters:
   image_size: 128
   image_channels: 3
 
+  inception_score_images: 2048
+
 searcher:
   name: single
-  metric: 128x128_instability
-  smaller_is_better: true
+  metric: inception_score
+  smaller_is_better: false
   max_length:
     epochs: 500
 

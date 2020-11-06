@@ -6,6 +6,9 @@ import math
 import datasets as ds
 from models import MsgGenerator, MsgDiscriminator
 from determined.experimental import Checkpoint
+from metrics import FrechetInceptionDistance, InceptionScore
+from torchvision.models import inception_v3
+from torchvision import transforms
 
 
 class PathLengthRegularizer():
@@ -70,3 +73,35 @@ discriminator = MsgDiscriminator(
 from distributions import TruncatedNormal
 
 dist = TruncatedNormal(0, 1, -2, 2)
+
+
+
+max_images_ic = 64
+bs = 32
+
+image_stack = None
+
+while True:
+    imgs, _ = generator(torch.rand(bs, 256))
+
+    if image_stack is None:
+        image_stack = imgs[-1]
+    else:
+        image_stack = torch.vstack((image_stack, imgs[-1]))
+
+    if image_stack.shape[0] >= max_images_ic:
+        break
+
+
+normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+
+print(image_stack.sum().item())
+print(normalize(image_stack).sum().item())
+print(normalize(normalize(image_stack)).sum().item())
+
+ic_model = inception_v3(pretrained=True, aux_logits=False)
+ic = InceptionScore(ic_model)
+ic.images = image_stack
+score = ic()
+
+print(score)

@@ -5,13 +5,14 @@ import torch
 import torch.optim as optim
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+from torchvision.models import inception_v3
 from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
-from loss_regularizers import GradientPenalty, PathLengthRegularizer
+from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer
 from losses import RaHinge, RaLSGAN, WGAN, RaSGAN
-from metrics import Instability
+from metrics import Instability, InceptionScore
 from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage
 from utils.types import TorchData
 
@@ -31,17 +32,21 @@ class MsgGANTrail(PyTorchTrial):
         self.loss_fn = self.context.get_hparam("loss_fn")
         self.gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
         self.path_length_regularizer_coefficient = self.context.get_hparam("path_length_regularizer_coefficient")
+        self.d_orthogonal_regularizer_coefficient = self.context.get_hparam("d_orthogonal_regularizer_coefficient")
+        self.g_orthogonal_regularizer_coefficient = self.context.get_hparam("g_orthogonal_regularizer_coefficient")
         self.ema = self.context.get_hparam("ema")
         self.ema_decay = self.context.get_hparam("ema_decay")
 
         self.filter_multiplier = self.context.get_hparam("filter_multiplier")
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
-        spectral_normalization = self.context.get_hparam("spectral_normalization")
+        self.spectral_normalization = self.context.get_hparam("spectral_normalization")
 
         self.image_size = self.context.get_hparam("image_size")
         self.image_channels = self.context.get_hparam("image_channels")
         self.latent_dimension = self.context.get_hparam("latent_dimension")
+
+        self.inception_score_images = self.context.get_hparam("inception_score_images")
         self.num_log_images = 6
         self.log_images_interval = 1000
 
@@ -52,7 +57,7 @@ class MsgGANTrail(PyTorchTrial):
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
-            spectral_normalization=spectral_normalization
+            spectral_normalization=self.spectral_normalization
         )
 
         discriminator_model = MsgDiscriminator(
@@ -61,13 +66,14 @@ class MsgGANTrail(PyTorchTrial):
             max_filters=self.max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
-            spectral_normalization=spectral_normalization
+            spectral_normalization=self.spectral_normalization
         )
 
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
 
         self.generator = self.context.wrap_model(generator_model)
         self.discriminator = self.context.wrap_model(discriminator_model)
+        self.inception_v3 = self.context.wrap_model(inception_v3(pretrained=True, aux_logits=False))
 
         self.opt_g = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.generator.parameters()))
         self.opt_d = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.discriminator.parameters()))
@@ -84,6 +90,18 @@ class MsgGANTrail(PyTorchTrial):
             coefficient=self.path_length_regularizer_coefficient
         )
 
+        self.g_orthogonal_regularizer = OrthogonalRegularizer(
+            self.context,
+            self.generator,
+            self.g_orthogonal_regularizer_coefficient
+        )
+
+        self.d_orthogonal_regularizer = OrthogonalRegularizer(
+            self.context,
+            self.discriminator,
+            self.d_orthogonal_regularizer_coefficient
+        )
+
         self.img_sizes = [
             2 ** (x + 1)
             for x in range(1, int(math.log2(self.image_size)))
@@ -91,6 +109,10 @@ class MsgGANTrail(PyTorchTrial):
 
         self.fixed_z = None
         self.instability_metrices = [Instability() for _ in self.img_sizes]
+        self.inception_score_metric = InceptionScore(
+            self.inception_v3,
+            self.context.get_per_slot_batch_size()
+        )
 
     def create_loss_fn(self, loss_fn):
         loss_fn_dict = {
@@ -119,16 +141,17 @@ class MsgGANTrail(PyTorchTrial):
         fake_validity = self.discriminator([img.detach() for img in scaled_fake_images])
 
         gp = self.gradient_penalty(w, scaled_real_images, scaled_fake_images)
+        d_ortho = self.d_orthogonal_regularizer(w, scaled_real_images, scaled_fake_images)
         d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
-        if gp is not None:
-            self.context.backward(d_loss + gp)
-        else:
-            self.context.backward(d_loss)
+        total = d_loss
+        total = total + gp if gp is not None else total
+        total = total + d_ortho if d_ortho is not None else total
 
+        self.context.backward(total)
         self.context.step_optimizer(self.opt_d)
 
-        return d_loss, gp
+        return d_loss, gp, d_ortho
 
     def optimize_generator(self, z, scaled_real_images):
         self.generator.requires_grad_(True)
@@ -139,19 +162,20 @@ class MsgGANTrail(PyTorchTrial):
         fake_validity = self.discriminator(scaled_fake_images)
 
         plr = self.path_length_regularizer(w, scaled_real_images, scaled_fake_images)
+        g_ortho = self.g_orthogonal_regularizer(w, scaled_real_images, scaled_fake_images)
         g_loss = self.loss.generator_loss(real_validity, fake_validity)
 
-        if plr is not None:
-            self.context.backward(g_loss + plr)
-        else:
-            self.context.backward(g_loss)
+        total = g_loss
+        total = total + plr if plr is not None else total
+        total = total + g_ortho if g_ortho is not None else total
 
+        self.context.backward(total)
         self.context.step_optimizer(self.opt_g)
 
         if self.ema:
             self.generator.update()
 
-        return g_loss, plr
+        return g_loss, plr, g_ortho
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_imgs, _ = batch
@@ -159,8 +183,8 @@ class MsgGANTrail(PyTorchTrial):
         z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
         z = self.context.to_device(z)
 
-        d_loss, gp = self.optimize_discriminator(z, scaled_real_images)
-        g_loss, plr = self.optimize_generator(z, scaled_real_images)
+        d_loss, gp, d_ortho = self.optimize_discriminator(z, scaled_real_images)
+        g_loss, plr, g_ortho = self.optimize_generator(z, scaled_real_images)
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx, epoch_idx)
@@ -171,7 +195,9 @@ class MsgGANTrail(PyTorchTrial):
             "g_loss": g_loss,
             "d_loss": d_loss,
             "gp": gp,
-            "plr": plr
+            "plr": plr,
+            "g_ortho": g_ortho,
+            "d_ortho": d_ortho
         }
 
         return {
@@ -253,9 +279,29 @@ class MsgGANTrail(PyTorchTrial):
             instabilities.append(instability_metric())
             instability_metric.step()
 
+        while True:
+            z = utils.sample_noise(
+                self.context.get_per_slot_batch_size(),
+                self.latent_dimension
+            )
+            z = self.context.to_device(z)
+
+            imgs, _ = self.generator(z)
+
+            if self.inception_score_metric.images is None:
+                self.inception_score_metric.images = imgs[-1]
+            else:
+                self.inception_score_metric.images = torch.vstack((self.inception_score_metric.images, imgs[-1]))
+
+            if self.inception_score_metric.images.shape[0] >= self.inception_score_images:
+                break
+
+        inception_score, _ = self.inception_score_metric()
+
         self.generator.train()
 
         return {
+            "inception_score": inception_score,
             **{
                 f'{size}x{size}_instability': instability
                 for size, instability

@@ -5,6 +5,8 @@ import math
 
 
 def celeba_hq(size=128, channels=1, root="/datasets"):
+    assert channels == 1 or channels == 3
+
     available_sizes = [128, 256, 512, 1024]
     needs_resize = False
 
@@ -19,7 +21,8 @@ def celeba_hq(size=128, channels=1, root="/datasets"):
         None if needs_resize else transforms.Resize(size),
         None if channels == 3 else transforms.Grayscale(),
         transforms.ToTensor(),
-        # transforms.Normalize((0.5,), (0.5,)),
+        transforms.Normalize((0.5,), (0.5,)) if channels == 1
+        else transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 
     transform = transforms.Compose([op for op in transform_ops if op is not None])
