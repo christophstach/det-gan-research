@@ -9,6 +9,7 @@ from determined.experimental import Checkpoint
 from metrics import FrechetInceptionDistance, InceptionScore
 from torchvision.models import inception_v3
 from torchvision import transforms
+import utils
 
 
 class PathLengthRegularizer():
@@ -93,11 +94,14 @@ while True:
         break
 
 
-normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+
 
 print(image_stack.sum().item())
-print(normalize(image_stack).sum().item())
-print(normalize(normalize(image_stack)).sum().item())
+
+print(utils.shift_image_range(image_stack).sum().item())
+print(utils.adjust_dynamic_range(image_stack).sum().item())
+
+print(utils.normalize_image_net(utils.shift_image_range(image_stack)).sum().item())
 
 ic_model = inception_v3(pretrained=True, aux_logits=False)
 ic = InceptionScore(ic_model)

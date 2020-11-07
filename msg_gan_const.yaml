@@ -16,13 +16,13 @@ resources:
 
 checkpoint_storage:
   save_trial_best: 1
-  save_trial_latest: 5
+  save_trial_latest: 1
   save_experiment_best: 1
 
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: RaHinge
+  loss_fn: RaSGAN
   optimizer: Adam
   lr: 0.0003
   b1: 0.5
@@ -30,7 +30,7 @@ hyperparameters:
 
   path_length_regularizer_coefficient: 0.0
   gradient_penalty_coefficient: 0.0
-  g_orthogonal_regularizer_coefficient: 1e-4
+  g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
   filter_multiplier: 4

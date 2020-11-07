@@ -239,7 +239,7 @@ class MsgGANTrail(PyTorchTrial):
         fixed_imgs, _ = self.generator(self.fixed_z)
         for imgs in fixed_imgs:
             size = str(imgs.shape[-1])
-            imgs.clamp_(0, 1)
+            imgs = utils.shift_image_range(imgs)
             grid = make_grid(imgs)
             self.logger.writer.add_image(f'generated_fixed_images_{size}x{size}', grid, batch_idx)
 
@@ -257,7 +257,7 @@ class MsgGANTrail(PyTorchTrial):
         sample_imgs, _ = self.generator(z)
         for imgs in sample_imgs:
             size = str(imgs.shape[-1])
-            imgs.clamp_(0, 1)
+            imgs = utils.shift_image_range(imgs)
             grid = make_grid(imgs)
             self.logger.writer.add_image(f'generated_sample_images_{size}x{size}', grid, batch_idx)
 
@@ -289,9 +289,11 @@ class MsgGANTrail(PyTorchTrial):
             imgs, _ = self.generator(z)
 
             if self.inception_score_metric.images is None:
-                self.inception_score_metric.images = imgs[-1]
+                self.inception_score_metric.images = utils.normalize_image_net(utils.shift_image_range(imgs[-1]))
             else:
-                self.inception_score_metric.images = torch.vstack((self.inception_score_metric.images, imgs[-1]))
+                self.inception_score_metric.images = torch.vstack(
+                    (self.inception_score_metric.images, utils.normalize_image_net(utils.shift_image_range(imgs[-1])))
+                )
 
             if self.inception_score_metric.images.shape[0] >= self.inception_score_images:
                 break
