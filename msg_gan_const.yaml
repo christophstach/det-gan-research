@@ -22,14 +22,14 @@ checkpoint_storage:
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: RaSGAN
+  loss_fn: RaLSGAN
   optimizer: Adam
   lr: 0.0003
   b1: 0.5
   b2: 0.999
 
   path_length_regularizer_coefficient: 0.0
-  gradient_penalty_coefficient: 0.0
+  gradient_penalty_coefficient: 10.0
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
