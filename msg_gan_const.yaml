@@ -22,7 +22,7 @@ checkpoint_storage:
 hyperparameters:
   global_batch_size: 32
 
-  loss_fn: RaLSGAN
+  loss_fn: RaHinge
   optimizer: Adam
   lr: 0.0003
   b1: 0.5
@@ -41,10 +41,11 @@ hyperparameters:
   ema: true
   ema_decay: 0.999
   spectral_normalization: true
-  image_size: 128
+  image_size: 256
   image_channels: 3
 
   inception_score_images: 2048
+  evaluation_model: "vggface2"
 
 searcher:
   name: single

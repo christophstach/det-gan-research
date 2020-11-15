@@ -2,16 +2,13 @@ from typing import Any, Dict
 
 import math
 import torch
-import torch.optim as optim
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
-from torchvision.models import inception_v3
 from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
 from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer
-from losses import RaHinge, RaLSGAN, WGAN, RaSGAN
 from metrics import Instability, InceptionScore
 from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage
 from utils.types import TorchData
@@ -47,6 +44,7 @@ class MsgGANTrail(PyTorchTrial):
         self.latent_dimension = self.context.get_hparam("latent_dimension")
 
         self.inception_score_images = self.context.get_hparam("inception_score_images")
+        self.evaluation_model = self.context.get_hparam("evaluation_model")
         self.num_log_images = 6
         self.log_images_interval = 1000
 
@@ -73,11 +71,26 @@ class MsgGANTrail(PyTorchTrial):
 
         self.generator = self.context.wrap_model(generator_model)
         self.discriminator = self.context.wrap_model(discriminator_model)
-        self.inception_v3 = self.context.wrap_model(inception_v3(pretrained=True, aux_logits=False))
 
-        self.opt_g = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.generator.parameters()))
-        self.opt_d = self.context.wrap_optimizer(self.create_optimizer(self.optimizer, self.discriminator.parameters()))
-        self.loss = self.create_loss_fn(self.loss_fn)
+        self.opt_g = self.context.wrap_optimizer(
+            utils.create_optimizer(
+                self.optimizer,
+                self.generator.parameters(),
+                self.lr,
+                (self.b1, self.b2)
+            )
+        )
+
+        self.opt_d = self.context.wrap_optimizer(
+            utils.create_optimizer(
+                self.optimizer,
+                self.discriminator.parameters(),
+                self.lr,
+                (self.b1, self.b2)
+            )
+        )
+
+        self.loss = utils.create_loss_fn(self.loss_fn)
 
         self.gradient_penalty = GradientPenalty(
             self.context,
@@ -107,29 +120,17 @@ class MsgGANTrail(PyTorchTrial):
             for x in range(1, int(math.log2(self.image_size)))
         ]
 
+        eval_model, resize_to, num_classes = utils.create_evaluation_model(self.evaluation_model)
+        eval_model = self.context.wrap_model(eval_model)
+
         self.fixed_z = None
         self.instability_metrices = [Instability() for _ in self.img_sizes]
         self.inception_score_metric = InceptionScore(
-            self.inception_v3,
+            eval_model,
+            resize_to,
+            num_classes,
             self.context.get_per_slot_batch_size()
         )
-
-    def create_loss_fn(self, loss_fn):
-        loss_fn_dict = {
-            'WGAN': lambda: WGAN(),
-            'RaHinge': lambda: RaHinge(),
-            'RaLSGAN': lambda: RaLSGAN(),
-            'RaSGAN': lambda: RaSGAN()
-        }
-
-        return loss_fn_dict[loss_fn]()
-
-    def create_optimizer(self, optimizer, parameters):
-        optimizer_dict = {
-            'Adam': lambda: optim.Adam(parameters, lr=self.lr, betas=(self.b1, self.b2))
-        }
-
-        return optimizer_dict[optimizer]()
 
     def optimize_discriminator(self, z, scaled_real_images):
         self.generator.requires_grad_(False)
