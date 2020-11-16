@@ -38,6 +38,7 @@ class MsgGANTrail(PyTorchTrial):
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
         self.spectral_normalization = self.context.get_hparam("spectral_normalization")
+        self.instance_noise_until = self.context.get_hparam("instance_noise_until")
 
         self.image_size = self.context.get_hparam("image_size")
         self.image_channels = self.context.get_hparam("image_channels")
@@ -132,11 +133,14 @@ class MsgGANTrail(PyTorchTrial):
             self.context.get_per_slot_batch_size()
         )
 
-    def optimize_discriminator(self, z, scaled_real_images):
+    def optimize_discriminator(self, z, scaled_real_images, batch_idx):
         self.generator.requires_grad_(False)
         self.discriminator.requires_grad_(True)
 
         scaled_fake_images, w = self.generator(z)
+
+        scaled_real_images, in_sigma = utils.instance_noise(scaled_real_images, batch_idx, self.instance_noise_until)
+        scaled_fake_images, in_sigma = utils.instance_noise(scaled_fake_images, batch_idx, self.instance_noise_until)
 
         real_validity = self.discriminator(scaled_real_images)
         fake_validity = self.discriminator([img.detach() for img in scaled_fake_images])
@@ -152,13 +156,17 @@ class MsgGANTrail(PyTorchTrial):
         self.context.backward(total)
         self.context.step_optimizer(self.opt_d)
 
-        return d_loss, gp, d_ortho
+        return d_loss, gp, d_ortho, in_sigma
 
-    def optimize_generator(self, z, scaled_real_images):
+    def optimize_generator(self, z, scaled_real_images, batch_idx):
         self.generator.requires_grad_(True)
         self.discriminator.requires_grad_(False)
 
         scaled_fake_images, w = self.generator(z)
+
+        scaled_real_images, in_sigma = utils.instance_noise(scaled_real_images, batch_idx, self.instance_noise_until)
+        scaled_fake_images, in_sigma = utils.instance_noise(scaled_fake_images, batch_idx, self.instance_noise_until)
+
         real_validity = self.discriminator(scaled_real_images)
         fake_validity = self.discriminator(scaled_fake_images)
 
@@ -176,7 +184,7 @@ class MsgGANTrail(PyTorchTrial):
         if self.ema:
             self.generator.update()
 
-        return g_loss, plr, g_ortho
+        return g_loss, plr, g_ortho, in_sigma
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_imgs, _ = batch
@@ -184,8 +192,8 @@ class MsgGANTrail(PyTorchTrial):
         z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
         z = self.context.to_device(z)
 
-        d_loss, gp, d_ortho = self.optimize_discriminator(z, scaled_real_images)
-        g_loss, plr, g_ortho = self.optimize_generator(z, scaled_real_images)
+        d_loss, gp, d_ortho, in_sigma = self.optimize_discriminator(z, scaled_real_images, batch_idx)
+        g_loss, plr, g_ortho, in_sigma = self.optimize_generator(z, scaled_real_images, batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx, epoch_idx)
@@ -198,7 +206,8 @@ class MsgGANTrail(PyTorchTrial):
             "gp": gp,
             "plr": plr,
             "g_ortho": g_ortho,
-            "d_ortho": d_ortho
+            "d_ortho": d_ortho,
+            "in_sigma": in_sigma
         }
 
         return {
