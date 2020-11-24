@@ -23,8 +23,9 @@ hyperparameters:
   global_batch_size: 32
 
   loss_fn: RaHinge
-  optimizer: Adam
-  lr: 0.0003
+  optimizer: OAdam
+  # lr: 0.005 # Good value from OAdam paper
+  lr: 0.0003 # Value from RaHinge paper as far as I remember
   b1: 0.5
   b2: 0.999
 
@@ -33,15 +34,15 @@ hyperparameters:
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
-  filter_multiplier: 4
+  filter_multiplier: 5
   min_filters: 0
   max_filters: 256
-  latent_dimension: 256
+  latent_dimension: 512
 
   ema: true
   ema_decay: 0.999
   spectral_normalization: true
-  instance_noise_until: 100000
+  instance_noise_until: 0
 
   image_size: 256
   image_channels: 3
