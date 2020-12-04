@@ -2,7 +2,8 @@ description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
-records_per_epoch: 30000 # for celebAHQ
+# records_per_epoch: 30000 # for celebAHQ
+records_per_epoch: 70000 # for ffhq
 
 min_validation_period:
   batches: 500
@@ -20,12 +21,12 @@ checkpoint_storage:
   save_experiment_best: 1
 
 hyperparameters:
-  global_batch_size: 32
+  global_batch_size: 64
 
   loss_fn: RaHinge
   optimizer: OAdam
-  # lr: 0.005 # Good value from OAdam paper
-  lr: 0.0003 # Value from RaHinge paper as far as I remember
+  lr: 0.005 # Good value from OAdam paper
+  # lr: 0.0003 # Value from RaHinge paper as far as I remember
   b1: 0.5
   b2: 0.999
 
@@ -34,7 +35,7 @@ hyperparameters:
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
-  filter_multiplier: 5
+  filter_multiplier: 2
   min_filters: 0
   max_filters: 256
   latent_dimension: 512

@@ -216,7 +216,7 @@ class MsgGANTrail(PyTorchTrial):
         }
 
     def build_training_data_loader(self) -> DataLoader:
-        train_data = ds.celeba_hq(size=self.image_size, channels=self.image_channels)
+        train_data = ds.ffhq(size=self.image_size, channels=self.image_channels)
 
         return DataLoader(
             train_data,
