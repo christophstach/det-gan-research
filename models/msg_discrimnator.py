@@ -8,7 +8,7 @@ import layers as l
 
 class MsgDiscriminator(torch.nn.Module):
     def __init__(self,
-                 filter_multiplier: int,
+                 depth: int,
                  min_filters: int,
                  max_filters: int,
                  image_size: int,
@@ -21,7 +21,7 @@ class MsgDiscriminator(torch.nn.Module):
         self.from_rgb_combiners = torch.nn.ModuleList()
 
         discriminator_filters = [
-            2 ** (x + 1) * filter_multiplier
+            2 ** (x + 1) * depth
             for x in range(1, int(math.log2(image_size)))
         ]
 

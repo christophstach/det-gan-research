@@ -34,7 +34,7 @@ class MsgGANTrail(PyTorchTrial):
         self.ema = self.context.get_hparam("ema")
         self.ema_decay = self.context.get_hparam("ema_decay")
 
-        self.filter_multiplier = self.context.get_hparam("filter_multiplier")
+        self.depth = self.context.get_hparam("depth")
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
         self.spectral_normalization = self.context.get_hparam("spectral_normalization")
@@ -50,7 +50,7 @@ class MsgGANTrail(PyTorchTrial):
         self.log_images_interval = 1000
 
         generator_model = MsgGenerator(
-            filter_multiplier=self.filter_multiplier,
+            depth=self.depth,
             min_filters=self.min_filters,
             max_filters=self.max_filters,
             image_size=self.image_size,
@@ -60,7 +60,7 @@ class MsgGANTrail(PyTorchTrial):
         )
 
         discriminator_model = MsgDiscriminator(
-            filter_multiplier=self.filter_multiplier,
+            depth=self.depth,
             min_filters=self.min_filters,
             max_filters=self.max_filters,
             image_size=self.image_size,

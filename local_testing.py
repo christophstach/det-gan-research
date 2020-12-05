@@ -58,7 +58,7 @@ generator = MsgGenerator(
     latent_dimension=256,
     min_filters=0,
     max_filters=256,
-    filter_multiplier=4,
+    depth=4,
     image_size=128,
     spectral_normalization=True
 )
@@ -67,7 +67,7 @@ discriminator = MsgDiscriminator(
     spectral_normalization=True,
     min_filters=0,
     max_filters=256,
-    filter_multiplier=4,
+    depth=4,
     image_size=128
 )
 

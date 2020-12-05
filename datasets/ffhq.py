@@ -11,7 +11,7 @@ def ffhq(size=128, channels=1, root="/datasets"):
 
     transform_ops = [
         transforms.Resize(size),
-        transforms.CenterCrop(size),
+        transforms.RandomCrop(size),
         None if channels == 3 else transforms.Grayscale(),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,)) if channels == 1

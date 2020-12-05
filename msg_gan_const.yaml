@@ -25,7 +25,7 @@ hyperparameters:
 
   loss_fn: RaHinge
   optimizer: OAdam
-  lr: 0.005 # Good value from OAdam paper
+  lr: 0.0001 # Good value from OAdam paper
   # lr: 0.0003 # Value from RaHinge paper as far as I remember
   b1: 0.5
   b2: 0.999
@@ -35,7 +35,7 @@ hyperparameters:
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
-  filter_multiplier: 2
+  depth: 4
   min_filters: 0
   max_filters: 256
   latent_dimension: 512
@@ -45,7 +45,7 @@ hyperparameters:
   spectral_normalization: true
   instance_noise_until: 0
 
-  image_size: 256
+  image_size: 64
   image_channels: 3
 
   inception_score_images: 2048

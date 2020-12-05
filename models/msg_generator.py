@@ -10,7 +10,7 @@ import layers as l
 
 class MsgGenerator(nn.Module):
     def __init__(self,
-                 filter_multiplier: int,
+                 depth: int,
                  min_filters: int,
                  max_filters: int,
                  image_size: int,
@@ -28,7 +28,7 @@ class MsgGenerator(nn.Module):
         self.to_rgb_converters = torch.nn.ModuleList()
 
         generator_filters = [
-            2 ** (x + 1) * filter_multiplier
+            2 ** (x + 1) * depth
             for x in reversed(range(1, int(math.log2(image_size))))
         ]
 
