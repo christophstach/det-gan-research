@@ -21,12 +21,12 @@ checkpoint_storage:
   save_experiment_best: 1
 
 hyperparameters:
-  global_batch_size: 64
+  global_batch_size: 32
 
   loss_fn: RaHinge
   optimizer: OAdam
-  lr: 0.0001 # Good value from OAdam paper
-  # lr: 0.0003 # Value from RaHinge paper as far as I remember
+  # lr: 0.0001 # Good value from OAdam paper
+  lr: 0.0003 # Value from RaHinge paper as far as I remember
   b1: 0.5
   b2: 0.999
 
@@ -45,7 +45,7 @@ hyperparameters:
   spectral_normalization: true
   instance_noise_until: 0
 
-  image_size: 64
+  image_size: 128
   image_channels: 3
 
   inception_score_images: 2048
@@ -56,7 +56,7 @@ searcher:
   metric: inception_score
   smaller_is_better: false
   max_length:
-    epochs: 500
+    epochs: 200
 
 environment:
   image:
