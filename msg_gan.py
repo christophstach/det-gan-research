@@ -5,6 +5,7 @@ import torch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 from torchvision.utils import make_grid
+from torch.nn.utils import clip_grad_norm_
 
 import datasets as ds
 import utils
@@ -33,11 +34,13 @@ class MsgGANTrail(PyTorchTrial):
         self.g_orthogonal_regularizer_coefficient = self.context.get_hparam("g_orthogonal_regularizer_coefficient")
         self.ema = self.context.get_hparam("ema")
         self.ema_decay = self.context.get_hparam("ema_decay")
+        self.clip_grad_norm = self.context.get_hparam("clip_grad_norm")
 
         self.depth = self.context.get_hparam("depth")
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
-        self.spectral_normalization = self.context.get_hparam("spectral_normalization")
+        self.g_spectral_normalization = self.context.get_hparam("g_spectral_normalization")
+        self.d_spectral_normalization = self.context.get_hparam("d_spectral_normalization")
         self.instance_noise_until = self.context.get_hparam("instance_noise_until")
 
         self.image_size = self.context.get_hparam("image_size")
@@ -56,7 +59,7 @@ class MsgGANTrail(PyTorchTrial):
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
-            spectral_normalization=self.spectral_normalization
+            spectral_normalization=self.g_spectral_normalization
         )
 
         discriminator_model = MsgDiscriminator(
@@ -65,7 +68,7 @@ class MsgGANTrail(PyTorchTrial):
             max_filters=self.max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
-            spectral_normalization=self.spectral_normalization
+            spectral_normalization=self.d_spectral_normalization
         )
 
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
@@ -154,9 +157,11 @@ class MsgGANTrail(PyTorchTrial):
         total = total + d_ortho if d_ortho is not None else total
 
         self.context.backward(total)
+        if self.clip_grad_norm > 0: clip_grad_norm_(self.discriminator.parameters(), self.clip_grad_norm)
+        d_grad_norm = utils.grad_norm(self.discriminator.parameters())
         self.context.step_optimizer(self.opt_d)
 
-        return d_loss, gp, d_ortho, in_sigma
+        return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
     def optimize_generator(self, z, scaled_real_images, batch_idx):
         self.generator.requires_grad_(True)
@@ -179,12 +184,14 @@ class MsgGANTrail(PyTorchTrial):
         total = total + g_ortho if g_ortho is not None else total
 
         self.context.backward(total)
+        if self.clip_grad_norm > 0: clip_grad_norm_(self.generator.parameters(), self.clip_grad_norm)
+        g_grad_norm = utils.grad_norm(self.generator.parameters())
         self.context.step_optimizer(self.opt_g)
 
         if self.ema:
             self.generator.update()
 
-        return g_loss, plr, g_ortho, in_sigma
+        return g_loss, plr, g_ortho, g_grad_norm, in_sigma
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_imgs, _ = batch
@@ -192,8 +199,8 @@ class MsgGANTrail(PyTorchTrial):
         z = utils.sample_noise(real_imgs.shape[0], self.latent_dimension)
         z = self.context.to_device(z)
 
-        d_loss, gp, d_ortho, in_sigma = self.optimize_discriminator(z, scaled_real_images, batch_idx)
-        g_loss, plr, g_ortho, in_sigma = self.optimize_generator(z, scaled_real_images, batch_idx)
+        d_loss, gp, d_ortho, d_grad_norm, in_sigma = self.optimize_discriminator(z, scaled_real_images, batch_idx)
+        g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(z, scaled_real_images, batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx, epoch_idx)
@@ -207,7 +214,9 @@ class MsgGANTrail(PyTorchTrial):
             "plr": plr,
             "g_ortho": g_ortho,
             "d_ortho": d_ortho,
-            "in_sigma": in_sigma
+            "in_sigma": in_sigma,
+            "g_grad_norm": g_grad_norm,
+            "d_grad_norm": d_grad_norm
         }
 
         return {

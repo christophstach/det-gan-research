@@ -42,8 +42,10 @@ hyperparameters:
 
   ema: true
   ema_decay: 0.999
-  spectral_normalization: true
+  g_spectral_normalization: false
+  d_spectral_normalization: true
   instance_noise_until: 0
+  clip_grad_norm: 0
 
   image_size: 128
   image_channels: 3
