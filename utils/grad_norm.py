@@ -1,5 +1,4 @@
-from torch import nn
-from typing import Union, Tuple, Any, Callable, Iterator, Set, Optional, overload, TypeVar, Mapping, Dict
+from typing import Iterator
 
 from torch.nn import Parameter
 

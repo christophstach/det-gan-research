@@ -16,6 +16,7 @@ class MsgGenerator(nn.Module):
                  image_size: int,
                  image_channels: int,
                  latent_dimension: int,
+                 normalization: str,
                  spectral_normalization: bool) -> None:
 
         super().__init__()
@@ -52,7 +53,8 @@ class MsgGenerator(nn.Module):
             if i == 0:
                 self.blocks.append(
                     l.MsgGeneratorFirstBlock(
-                        generator_filters[i]
+                        generator_filters[i],
+                        normalization
                     )
                 )
             elif i < len(generator_filters) - 1:
@@ -60,18 +62,20 @@ class MsgGenerator(nn.Module):
                     l.MsgGeneratorIntermediateBlock(
                         generator_filters[i - 1],
                         generator_filters[i],
+                        normalization
                     )
                 )
             else:
                 self.blocks.append(
                     l.MsgGeneratorLastBlock(
                         generator_filters[i - 1],
-                        generator_filters[i]
+                        generator_filters[i],
+                        normalization
                     )
                 )
 
             self.to_rgb_converters.append(
-                torch.nn.Conv2d(
+                nn.Conv2d(
                     in_channels=generator_filters[i],
                     out_channels=image_channels,
                     kernel_size=1,

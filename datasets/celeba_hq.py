@@ -1,7 +1,6 @@
 from torchvision import transforms
 
 from .flat_image_folder import FlatImageFolder
-import math
 
 
 def celeba_hq(size=128, channels=1, root="/datasets"):

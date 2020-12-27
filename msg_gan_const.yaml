@@ -2,8 +2,8 @@ description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
-# records_per_epoch: 30000 # for celebAHQ
-records_per_epoch: 70000 # for ffhq
+records_per_epoch: 30000 # for celebAHQ
+# records_per_epoch: 70000 # for ffhq
 
 min_validation_period:
   batches: 500
@@ -42,7 +42,8 @@ hyperparameters:
 
   ema: true
   ema_decay: 0.999
-  g_spectral_normalization: false
+  g_normalization: passthrough
+  g_spectral_normalization: true
   d_spectral_normalization: true
   instance_noise_until: 0
   clip_grad_norm: 0

@@ -1,7 +1,48 @@
 import torch
 import torch.nn as nn
 
-from ..utils import sparsestmax
+import math
+
+
+def sparsemax(v, z=1):
+    v_sorted, _ = torch.sort(v, dim=0, descending=True)
+    cssv = torch.cumsum(v_sorted, dim=0) - z
+    ind = torch.arange(1, 1 + len(v)).float().to(v.device)
+    cond = v_sorted - cssv / ind > 0
+    rho = ind.masked_select(cond)[-1]
+    tau = cssv.masked_select(cond)[-1] / rho
+    w = torch.clamp(v - tau, min=0)
+
+    return w / z
+
+
+def sparsestmax(v, rad_in=0, u_in=None):
+    w = sparsemax(v)
+
+    if max(w) - min(w) == 1:
+        return w
+
+    # Small fix of warning... has still to be tested
+    ind = (w > 0).clone().detach().float()
+
+    u = ind / torch.sum(ind)
+
+    if u_in is None:
+        rad = rad_in
+    else:
+        rad = math.sqrt(rad_in ** 2 - torch.sum((u - u_in) ** 2))
+
+    distance = torch.norm(w - u)
+
+    if distance >= rad:
+        return w
+
+    p = rad * (w - u) / distance + u
+
+    if min(p) < 0:
+        return sparsestmax(p, rad, u)
+
+    return p.clamp_(min=0, max=1)
 
 
 class SparseSwitchNorm2d(nn.Module):

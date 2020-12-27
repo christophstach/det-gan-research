@@ -39,8 +39,11 @@ class MsgGANTrail(PyTorchTrial):
         self.depth = self.context.get_hparam("depth")
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
+
         self.g_spectral_normalization = self.context.get_hparam("g_spectral_normalization")
         self.d_spectral_normalization = self.context.get_hparam("d_spectral_normalization")
+        self.g_normalization = self.context.get_hparam("g_normalization")
+
         self.instance_noise_until = self.context.get_hparam("instance_noise_until")
 
         self.image_size = self.context.get_hparam("image_size")
@@ -59,6 +62,7 @@ class MsgGANTrail(PyTorchTrial):
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
+            normalization=self.g_normalization,
             spectral_normalization=self.g_spectral_normalization
         )
 
@@ -225,7 +229,7 @@ class MsgGANTrail(PyTorchTrial):
         }
 
     def build_training_data_loader(self) -> DataLoader:
-        train_data = ds.ffhq(size=self.image_size, channels=self.image_channels)
+        train_data = ds.celeba_hq(size=self.image_size, channels=self.image_channels)
 
         return DataLoader(
             train_data,
