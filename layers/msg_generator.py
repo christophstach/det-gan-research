@@ -27,13 +27,13 @@ class MsgGeneratorFirstBlock(nn.Module):
         )
 
         self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
-        self.norm = utils.create_norm(norm, in_channels)
+
+        self.norm1 = utils.create_norm(norm, in_channels)
+        self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x):
-        x = self.leakyRelu(self.conv1(x))
-        x = self.leakyRelu(self.conv2(x))
-
-        x = self.norm(x)
+        x = self.norm1(self.leakyRelu(self.conv1(x)))
+        x = self.norm2(self.leakyRelu(self.conv2(x)))
 
         return x
 

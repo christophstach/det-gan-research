@@ -42,8 +42,8 @@ hyperparameters:
 
   ema: true
   ema_decay: 0.999
-  g_normalization: passthrough
-  g_spectral_normalization: true
+  g_normalization: switchable
+  g_spectral_normalization: false
   d_spectral_normalization: true
   instance_noise_until: 0
   clip_grad_norm: 0
