@@ -75,7 +75,6 @@ class MsgDiscriminator(torch.nn.Module):
                 self.blocks.append(
                     l.MsgDiscriminatorLastBlock(
                         discriminator_filters[i] + additional_filters,
-                        1,
                         normalization,
                         activation_fn
                     )
