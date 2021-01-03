@@ -14,7 +14,7 @@ def create_activation_fn(activation_fn: str, num_features: int):
         "elu": lambda: ELU(inplace=True),
         "silu": lambda: SiLU(inplace=True),
         "gelu": lambda: GELU(),
-        "mish": lambda: Mish(inplace=True),
+        "mish": lambda: Mish(),
         "swish": lambda: Swish(),
         "eswish": lambda: Eswish()
     }
