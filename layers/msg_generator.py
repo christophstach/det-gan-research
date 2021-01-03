@@ -5,7 +5,7 @@ import utils
 
 
 class MsgGeneratorFirstBlock(nn.Module):
-    def __init__(self, in_channels, norm, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.conv1 = nn.ConvTranspose2d(
@@ -26,20 +26,21 @@ class MsgGeneratorFirstBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, in_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, in_channels)
 
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x):
-        x = self.norm1(self.leakyRelu(self.conv1(x)))
-        x = self.norm2(self.leakyRelu(self.conv2(x)))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
 
 
 class MsgGeneratorIntermediateBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.conv1 = nn.Conv2d(
@@ -60,7 +61,8 @@ class MsgGeneratorIntermediateBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, out_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, out_channels)
 
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
@@ -76,14 +78,14 @@ class MsgGeneratorIntermediateBlock(nn.Module):
             align_corners=False
         )
 
-        x = self.norm1(self.leakyRelu(self.conv1(x)))
-        x = self.norm2(self.leakyRelu(self.conv2(x)))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
 
 
 class MsgGeneratorLastBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.conv1 = nn.Conv2d(
@@ -104,7 +106,8 @@ class MsgGeneratorLastBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, out_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, out_channels)
 
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
@@ -120,7 +123,7 @@ class MsgGeneratorLastBlock(nn.Module):
             align_corners=False
         )
 
-        x = self.norm1(self.leakyRelu(self.conv1(x)))
-        x = self.norm2(self.leakyRelu(self.conv2(x)))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x

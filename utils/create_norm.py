@@ -2,7 +2,7 @@ import layers as l
 from torch import nn
 
 
-def create_norm(norm: str, num_features):
+def create_norm(norm: str, num_features: int):
     norm_dict = {
         "passthrough": lambda: l.Passthrough(),
         "pixel": lambda: l.PixelNorm(),

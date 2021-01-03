@@ -3,9 +3,11 @@ import torch.nn as nn
 
 import layers as l
 
+import utils
+
 
 class MsgDiscriminatorFirstBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.conv1 = nn.Conv2d(
@@ -26,12 +28,17 @@ class MsgDiscriminatorFirstBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, in_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, out_channels)
+
+        self.norm1 = utils.create_norm(norm, in_channels)
+        self.norm2 = utils.create_norm(norm, out_channels)
+
         self.avgPool = nn.AvgPool2d(2, 2)
 
     def forward(self, x):
-        x = self.leakyRelu(self.conv1(x))
-        x = self.leakyRelu(self.conv2(x))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         x = self.avgPool(x)
 
@@ -39,7 +46,7 @@ class MsgDiscriminatorFirstBlock(nn.Module):
 
 
 class MsgDiscriminatorIntermediateBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.conv1 = nn.Conv2d(
@@ -60,12 +67,17 @@ class MsgDiscriminatorIntermediateBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, in_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, out_channels)
+
+        self.norm1 = utils.create_norm(norm, in_channels)
+        self.norm2 = utils.create_norm(norm, out_channels)
+
         self.avgPool = nn.AvgPool2d(2, 2)
 
     def forward(self, x):
-        x = self.leakyRelu(self.conv1(x))
-        x = self.leakyRelu(self.conv2(x))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         x = self.avgPool(x)
 
@@ -73,7 +85,7 @@ class MsgDiscriminatorIntermediateBlock(nn.Module):
 
 
 class MsgDiscriminatorLastBlock(nn.Module):
-    def __init__(self, in_channels, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, bias=False):
         super().__init__()
 
         self.miniBatchStdDev = l.MinibatchStdDev()
@@ -105,13 +117,17 @@ class MsgDiscriminatorLastBlock(nn.Module):
             bias=bias
         )
 
-        self.leakyRelu = nn.LeakyReLU(0.2, inplace=True)
+        self.act_fn1 = utils.create_activation_fn(activation_fn, in_channels)
+        self.act_fn2 = utils.create_activation_fn(activation_fn, in_channels)
+
+        self.norm1 = utils.create_norm(norm, in_channels)
+        self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x):
         x = self.miniBatchStdDev(x)
 
-        x = self.leakyRelu(self.conv1(x))
-        x = self.leakyRelu(self.conv2(x))
+        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm2(self.act_fn2(self.conv2(x)))
 
         x = self.validator(x)
 

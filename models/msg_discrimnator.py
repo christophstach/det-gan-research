@@ -13,6 +13,8 @@ class MsgDiscriminator(torch.nn.Module):
                  max_filters: int,
                  image_size: int,
                  image_channels: int,
+                 normalization: str,
+                 activation_fn: str,
                  spectral_normalization: bool) -> None:
 
         super().__init__()
@@ -47,7 +49,9 @@ class MsgDiscriminator(torch.nn.Module):
                 self.blocks.append(
                     l.MsgDiscriminatorFirstBlock(
                         image_channels,
-                        discriminator_filters[i + 1]
+                        discriminator_filters[i + 1],
+                        normalization,
+                        activation_fn
                     )
                 )
 
@@ -58,7 +62,9 @@ class MsgDiscriminator(torch.nn.Module):
                 self.blocks.append(
                     l.MsgDiscriminatorIntermediateBlock(
                         discriminator_filters[i] + additional_filters,
-                        discriminator_filters[i + 1]
+                        discriminator_filters[i + 1],
+                        normalization,
+                        activation_fn
                     )
                 )
 
@@ -69,7 +75,9 @@ class MsgDiscriminator(torch.nn.Module):
                 self.blocks.append(
                     l.MsgDiscriminatorLastBlock(
                         discriminator_filters[i] + additional_filters,
-                        1
+                        1,
+                        normalization,
+                        activation_fn
                     )
                 )
 

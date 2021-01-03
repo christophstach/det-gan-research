@@ -17,6 +17,7 @@ class MsgGenerator(nn.Module):
                  image_channels: int,
                  latent_dimension: int,
                  normalization: str,
+                 activation_fn: str,
                  spectral_normalization: bool) -> None:
 
         super().__init__()
@@ -54,7 +55,8 @@ class MsgGenerator(nn.Module):
                 self.blocks.append(
                     l.MsgGeneratorFirstBlock(
                         generator_filters[i],
-                        normalization
+                        normalization,
+                        activation_fn
                     )
                 )
             elif i < len(generator_filters) - 1:
@@ -62,7 +64,8 @@ class MsgGenerator(nn.Module):
                     l.MsgGeneratorIntermediateBlock(
                         generator_filters[i - 1],
                         generator_filters[i],
-                        normalization
+                        normalization,
+                        activation_fn
                     )
                 )
             else:
@@ -70,7 +73,8 @@ class MsgGenerator(nn.Module):
                     l.MsgGeneratorLastBlock(
                         generator_filters[i - 1],
                         generator_filters[i],
-                        normalization
+                        normalization,
+                        activation_fn
                     )
                 )
 

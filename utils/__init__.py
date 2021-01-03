@@ -8,3 +8,4 @@ from .shift_image_range import shift_image_range
 from .to_scaled_images import to_scaled_images
 from .grad_norm import grad_norm
 from .create_norm import create_norm
+from .create_activation_fn import create_activation_fn

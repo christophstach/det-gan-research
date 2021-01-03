@@ -40,9 +40,13 @@ class MsgGANTrail(PyTorchTrial):
         self.min_filters = self.context.get_hparam("min_filters")
         self.max_filters = self.context.get_hparam("max_filters")
 
-        self.g_spectral_normalization = self.context.get_hparam("g_spectral_normalization")
-        self.d_spectral_normalization = self.context.get_hparam("d_spectral_normalization")
+        self.g_activation_fn = self.context.get_hparam("g_activation_fn")
         self.g_normalization = self.context.get_hparam("g_normalization")
+        self.g_spectral_normalization = self.context.get_hparam("g_spectral_normalization")
+
+        self.d_activation_fn = self.context.get_hparam("d_activation_fn")
+        self.d_normalization = self.context.get_hparam("d_normalization")
+        self.d_spectral_normalization = self.context.get_hparam("d_spectral_normalization")
 
         self.instance_noise_until = self.context.get_hparam("instance_noise_until")
 
@@ -62,6 +66,7 @@ class MsgGANTrail(PyTorchTrial):
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
+            activation_fn=self.g_activation_fn,
             normalization=self.g_normalization,
             spectral_normalization=self.g_spectral_normalization
         )
@@ -72,6 +77,8 @@ class MsgGANTrail(PyTorchTrial):
             max_filters=self.max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
+            activation_fn=self.d_activation_fn,
+            normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization
         )
 
