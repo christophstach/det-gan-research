@@ -5,6 +5,13 @@ entrypoint: msg_gan:MsgGANTrail
 records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 70000 # for ffhq
 
+searcher:
+  name: single
+  metric: inception_score
+  smaller_is_better: false
+  max_length:
+    epochs: 300
+
 min_validation_period:
   batches: 500
 
@@ -24,31 +31,31 @@ hyperparameters:
   global_batch_size: 32
 
   loss_fn: RaHinge
-  optimizer: OAdam
+  optimizer: Adam
   # lr: 0.0001 # Good value from OAdam paper
   lr: 0.0003 # Value from RaHinge paper as far as I remember
   b1: 0.5
   b2: 0.999
 
-  path_length_regularizer_coefficient: 0.0
   gradient_penalty_coefficient: 10.0
+  path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
-  depth: 4
+  depth: 8
   min_filters: 0
-  max_filters: 256
+  max_filters: 0
   latent_dimension: 512
 
   ema: true
   ema_decay: 0.999
 
-  g_activation_fn: mish
+  g_activation_fn: prelu
   g_normalization: switchable
   g_spectral_normalization: false
 
-  d_activation_fn: lrelu
-  d_normalization: passthrough # not implemented right now
+  d_activation_fn: prelu
+  d_normalization: passthrough
   d_spectral_normalization: true
 
   instance_noise_until: 0
@@ -59,13 +66,6 @@ hyperparameters:
 
   inception_score_images: 2048
   evaluation_model: "vggface2"
-
-searcher:
-  name: single
-  metric: inception_score
-  smaller_is_better: false
-  max_length:
-    epochs: 200
 
 environment:
   image:
