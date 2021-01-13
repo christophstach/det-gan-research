@@ -56,7 +56,7 @@ def parse_args():
         help='The url of the determined master (default: dt1.f4.htw-berlin.de).'
     )
     cluster_group.add_argument(
-        '--determined-user', metavar='DETERMINEDUSER', type=str, default=None,
+        '--determined-user', metavar='DETERMINEDUSER', type=str, default=None,/home/christoph
         help='Your determined user. If not given this script tries to identify your user automatically. '
              'You can change this with det login <username>.'
     )
