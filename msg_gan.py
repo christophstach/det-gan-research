@@ -26,6 +26,8 @@ class MsgGANTrail(PyTorchTrial):
         self.b1 = self.context.get_hparam("b1")
         self.b2 = self.context.get_hparam("b2")
 
+        self.dataset = self.context.get_hparam("dataset")
+
         self.optimizer = self.context.get_hparam("optimizer")
         self.loss_fn = self.context.get_hparam("loss_fn")
         self.gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
@@ -236,7 +238,7 @@ class MsgGANTrail(PyTorchTrial):
         }
 
     def build_training_data_loader(self) -> DataLoader:
-        train_data = ds.celeba_hq(size=self.image_size, channels=self.image_channels)
+        train_data = utils.create_dataset(dataset=self.dataset, size=self.image_size, channels=self.image_channels)
 
         return DataLoader(
             train_data,

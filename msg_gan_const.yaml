@@ -2,8 +2,9 @@ description: MSG GAN Const
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
-records_per_epoch: 30000 # for celebAHQ
+# records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 70000 # for ffhq
+records_per_epoch: 63632 # for anime-face
 
 searcher:
   name: single
@@ -29,6 +30,8 @@ checkpoint_storage:
 
 hyperparameters:
   global_batch_size: 32
+
+  dataset: anime-face
 
   loss_fn: RaHinge
   optimizer: Adam

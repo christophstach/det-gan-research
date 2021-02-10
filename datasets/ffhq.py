@@ -1,10 +1,9 @@
 from torchvision import transforms
 
 from .flat_image_folder import FlatImageFolder
-import math
 
 
-def ffhq(size=128, channels=1, root="/datasets"):
+def ffhq(size=128, channels=3, root="/datasets"):
     assert channels == 1 or channels == 3
 
     root += "/ffhq-dataset/images1024x1024"
