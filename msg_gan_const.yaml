@@ -35,6 +35,7 @@ hyperparameters:
   image_size: 128
   image_channels: 3
 
+  msg: true
   loss_fn: RaHinge
   latent_dimension: 512
   ema: true

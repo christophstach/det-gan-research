@@ -22,7 +22,7 @@ class OrthogonalRegularizer(loss_regularizers.base.LossRegularizer):
         self.lazy_regularization_interval = lazy_regularization_interval
         self.steps = 0
 
-    def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
+    def __call__(self, w: torch.Tensor, real_images: Union[List[torch.Tensor], torch.Tensor], fake_images: Union[List[torch.Tensor], torch.Tensor]):
         if self.coefficient > 0.0 and self.steps % self.lazy_regularization_interval == 0:
             with torch.enable_grad():
                 orthogonal_loss = torch.zeros(1)

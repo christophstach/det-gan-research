@@ -25,9 +25,11 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
         self.steps = 0
         self.first_step = first_step
 
-    def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
+    def __call__(self, w: torch.Tensor, real_images: Union[List[torch.Tensor], torch.Tensor], fake_images: Union[List[torch.Tensor], torch.Tensor]):
         if self.coefficient > 0.0 and self.steps >= self.first_step and self.steps % self.lazy_regularization_interval == 0:
-            fake_images = fake_images[-1]
+            if isinstance(real_images, list): # in case of msg
+                fake_images = fake_images[-1]
+
             w.requires_grad_(True)
 
             noise = torch.randn_like(fake_images) / math.sqrt(
