@@ -22,25 +22,39 @@ class MsgGANTrail(PyTorchTrial):
         self.context = context
         self.logger = TorchWriter()
 
-        self.lr = self.context.get_hparam("lr")
-        self.b1 = self.context.get_hparam("b1")
-        self.b2 = self.context.get_hparam("b2")
-
         self.dataset = self.context.get_hparam("dataset")
+        self.image_size = self.context.get_hparam("image_size")
+        self.image_channels = self.context.get_hparam("image_channels")
 
-        self.optimizer = self.context.get_hparam("optimizer")
         self.loss_fn = self.context.get_hparam("loss_fn")
+        self.latent_dimension = self.context.get_hparam("latent_dimension")
+        self.ema = self.context.get_hparam("ema")
+        self.ema_decay = self.context.get_hparam("ema_decay")
+        self.instance_noise_until = self.context.get_hparam("instance_noise_until")
+        self.clip_grad_norm = self.context.get_hparam("clip_grad_norm")
+
         self.gradient_penalty_coefficient = self.context.get_hparam("gradient_penalty_coefficient")
         self.path_length_regularizer_coefficient = self.context.get_hparam("path_length_regularizer_coefficient")
         self.d_orthogonal_regularizer_coefficient = self.context.get_hparam("d_orthogonal_regularizer_coefficient")
         self.g_orthogonal_regularizer_coefficient = self.context.get_hparam("g_orthogonal_regularizer_coefficient")
-        self.ema = self.context.get_hparam("ema")
-        self.ema_decay = self.context.get_hparam("ema_decay")
-        self.clip_grad_norm = self.context.get_hparam("clip_grad_norm")
 
-        self.depth = self.context.get_hparam("depth")
-        self.min_filters = self.context.get_hparam("min_filters")
-        self.max_filters = self.context.get_hparam("max_filters")
+        self.g_optimizer = self.context.get_hparam("g_optimizer")
+        self.g_lr = self.context.get_hparam("g_lr")
+        self.g_b1 = self.context.get_hparam("g_b1")
+        self.g_b2 = self.context.get_hparam("g_b2")
+
+        self.d_optimizer = self.context.get_hparam("d_optimizer")
+        self.d_lr = self.context.get_hparam("d_lr")        
+        self.d_b1 = self.context.get_hparam("d_b1")
+        self.d_b2 = self.context.get_hparam("d_b2")
+
+        self.g_depth = self.context.get_hparam("g_depth")
+        self.g_min_filters = self.context.get_hparam("g_min_filters")
+        self.g_max_filters = self.context.get_hparam("g_max_filters")
+
+        self.d_depth = self.context.get_hparam("d_depth")
+        self.d_min_filters = self.context.get_hparam("d_min_filters")
+        self.d_max_filters = self.context.get_hparam("d_max_filters")
 
         self.g_activation_fn = self.context.get_hparam("g_activation_fn")
         self.g_normalization = self.context.get_hparam("g_normalization")
@@ -50,21 +64,15 @@ class MsgGANTrail(PyTorchTrial):
         self.d_normalization = self.context.get_hparam("d_normalization")
         self.d_spectral_normalization = self.context.get_hparam("d_spectral_normalization")
 
-        self.instance_noise_until = self.context.get_hparam("instance_noise_until")
-
-        self.image_size = self.context.get_hparam("image_size")
-        self.image_channels = self.context.get_hparam("image_channels")
-        self.latent_dimension = self.context.get_hparam("latent_dimension")
-
         self.inception_score_images = self.context.get_hparam("inception_score_images")
         self.evaluation_model = self.context.get_hparam("evaluation_model")
         self.num_log_images = 6
         self.log_images_interval = 1000
 
         generator_model = MsgGenerator(
-            depth=self.depth,
-            min_filters=self.min_filters,
-            max_filters=self.max_filters,
+            depth=self.g_depth,
+            min_filters=self.g_min_filters,
+            max_filters=self.g_max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
             latent_dimension=self.latent_dimension,
@@ -74,9 +82,9 @@ class MsgGANTrail(PyTorchTrial):
         )
 
         discriminator_model = MsgDiscriminator(
-            depth=self.depth,
-            min_filters=self.min_filters,
-            max_filters=self.max_filters,
+            depth=self.d_depth,
+            min_filters=self.d_min_filters,
+            max_filters=self.d_max_filters,
             image_size=self.image_size,
             image_channels=self.image_channels,
             activation_fn=self.d_activation_fn,
@@ -91,19 +99,19 @@ class MsgGANTrail(PyTorchTrial):
 
         self.opt_g = self.context.wrap_optimizer(
             utils.create_optimizer(
-                self.optimizer,
+                self.g_optimizer,
                 self.generator.parameters(),
-                self.lr,
-                (self.b1, self.b2)
+                self.g_lr,
+                (self.g_b1, self.g_b2)
             )
         )
 
         self.opt_d = self.context.wrap_optimizer(
             utils.create_optimizer(
-                self.optimizer,
+                self.d_optimizer,
                 self.discriminator.parameters(),
-                self.lr,
-                (self.b1, self.b2)
+                self.d_lr,
+                (self.d_b1, self.d_b2)
             )
         )
 

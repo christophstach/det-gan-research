@@ -32,26 +32,40 @@ hyperparameters:
   global_batch_size: 32
 
   dataset: anime-face
+  image_size: 128
+  image_channels: 3
 
   loss_fn: RaHinge
-  optimizer: Adam
-  # lr: 0.0001 # Good value from OAdam paper
-  lr: 0.0003 # Value from RaHinge paper as far as I remember
-  b1: 0.5
-  b2: 0.999
+  latent_dimension: 512
+  ema: true
+  ema_decay: 0.999
+  instance_noise_until: 0
+  clip_grad_norm: 0
 
   gradient_penalty_coefficient: 10.0
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
-  depth: 8
-  min_filters: 0
-  max_filters: 0
-  latent_dimension: 512
+  g_optimizer: Adam
+  # g_lr: 0.0001 # Good value from OAdam paper
+  g_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  g_b1: 0.5
+  g_b2: 0.999
+  
+  d_optimizer: Adam
+  # d_lr: 0.0001 # Good value from OAdam paper
+  d_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  d_b1: 0.5
+  d_b2: 0.999
 
-  ema: true
-  ema_decay: 0.999
+  g_depth: 8
+  g_min_filters: 0
+  g_max_filters: 0
+
+  d_depth: 8
+  d_min_filters: 0
+  d_max_filters: 0
 
   g_activation_fn: prelu
   g_normalization: switchable
@@ -60,12 +74,6 @@ hyperparameters:
   d_activation_fn: prelu
   d_normalization: passthrough
   d_spectral_normalization: true
-
-  instance_noise_until: 0
-  clip_grad_norm: 0
-
-  image_size: 128
-  image_channels: 3
 
   inception_score_images: 2048
   evaluation_model: "vggface2"
