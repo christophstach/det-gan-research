@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List
 
 import torch
 from determined.pytorch import PyTorchTrialContext
@@ -36,12 +36,8 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
 
         return interpolation
 
-    def __call__(self, w: torch.Tensor, real_images: Union[List[torch.Tensor], torch.Tensor], fake_images: Union[List[torch.Tensor], torch.Tensor]):
+    def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
         if self.coefficient > 0.0 and self.steps % self.lazy_regularization_interval == 0:
-            if isinstance(real_images, list): # in case of none msg make msg compatible
-                real_images = [real_images]
-                fake_images = [fake_images]
-
             alpha = torch.rand(real_images[0].shape[0], 1, 1, 1)
             alpha = self.context.to_device(alpha)
 

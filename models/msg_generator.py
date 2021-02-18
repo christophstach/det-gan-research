@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import math
 import torch
@@ -18,8 +18,7 @@ class MsgGenerator(nn.Module):
                  latent_dimension: int,
                  normalization: str,
                  activation_fn: str,
-                 spectral_normalization: bool,
-                 msg: bool) -> None:
+                 spectral_normalization: bool) -> None:
 
         super().__init__()
 
@@ -27,11 +26,8 @@ class MsgGenerator(nn.Module):
         #    nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
         # )
 
-        self.msg = msg
         self.blocks = torch.nn.ModuleList()
-       
-        if self.msg:
-            self.to_rgb_converters = torch.nn.ModuleList()
+        self.to_rgb_converters = torch.nn.ModuleList()
 
         generator_filters = [
             2 ** (x + 1) * depth
@@ -82,23 +78,22 @@ class MsgGenerator(nn.Module):
                     )
                 )
 
-            if self.msg:
-                self.to_rgb_converters.append(
-                    nn.Conv2d(
-                        in_channels=generator_filters[i],
-                        out_channels=image_channels,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0
-                    )
+            self.to_rgb_converters.append(
+                nn.Conv2d(
+                    in_channels=generator_filters[i],
+                    out_channels=image_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0
                 )
+            )
 
         if spectral_normalization:
             for block in self.blocks:
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, z: torch.Tensor) -> Union[Tuple[List[torch.Tensor], torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]:
+    def forward(self, z: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
         outputs = []
 
         z = z.view(z.shape[0], -1, 1, 1)
@@ -106,15 +101,9 @@ class MsgGenerator(nn.Module):
         w = z
         x = w
 
-        if self.msg:
-            for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
-                x = block(x)
-                output = torch.tanh(to_rgb(x))
-                outputs.append(output)
+        for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
+            x = block(x)
+            output = torch.tanh(to_rgb(x))
+            outputs.append(output)
 
-            return outputs, w
-        else:
-            for block in self.blocks:
-                x = block(x)
-            
-            return x, w
+        return outputs, w
