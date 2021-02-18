@@ -3,7 +3,7 @@ import math
 import torch.nn.functional as F
 
 
-def to_scaled_images(source_images, image_size):
+def to_scaled_images(source_images, image_size: int):
     return [
         *[
             F.interpolate(source_images, size=2 ** target_size)

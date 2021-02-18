@@ -17,8 +17,8 @@ def celeba_hq(size=128, channels=3, root="/datasets"):
         root += "/celebAHQ/data" + str(size) + "x" + str(size)
 
     transform_ops = [
-        None if needs_resize else transforms.Resize(size),
-        None if channels == 3 else transforms.Grayscale(),
+        transforms.Resize(size) if needs_resize else None,
+        transforms.Grayscale() if channels == 1 else None,
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,)) if channels == 1
         else transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
