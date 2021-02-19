@@ -4,20 +4,20 @@ entrypoint: msg_gan:MsgGANTrail
 # records_per_epoch: 60000 # for mnist
 # records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 70000 # for ffhq
-records_per_epoch: 63632 # for anime-face
+# records_per_epoch: 63632 # for anime-face
 
 searcher:
   name: single
   metric: inception_score
   smaller_is_better: false
   max_length:
-    epochs: 300
+    batches: 500000
 
 min_validation_period:
   batches: 500
 
 min_checkpoint_period:
-  epochs: 5
+  batches: 10000
 
 resources:
   slots_per_trial: 1
@@ -31,18 +31,22 @@ checkpoint_storage:
 hyperparameters:
   global_batch_size: 32
 
-  dataset: anime-face
-  image_size: 128
+  # dataset: anime-face
+  dataset: celeba-hq
+  image_size: 64
   image_channels: 3
 
-  loss_fn: RaHinge
-  latent_dimension: 512
+  msg: false
+  loss_fn: WGAN
+  latent_dimension: 128
   ema: true
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
 
   gradient_penalty_coefficient: 10.0
+  gradient_penalty_center: 1.0
+
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
@@ -59,19 +63,19 @@ hyperparameters:
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 8
+  g_depth: 1
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 8
+  d_depth: 1
   d_min_filters: 0
   d_max_filters: 0
 
-  g_activation_fn: prelu
-  g_normalization: switchable
+  g_activation_fn: lrelu
+  g_normalization: instance
   g_spectral_normalization: false
 
-  d_activation_fn: prelu
+  d_activation_fn: lrelu
   d_normalization: passthrough
   d_spectral_normalization: true
 

@@ -18,7 +18,8 @@ class MsgGenerator(nn.Module):
                  latent_dimension: int,
                  normalization: str,
                  activation_fn: str,
-                 spectral_normalization: bool) -> None:
+                 spectral_normalization: bool,
+                 msg: bool) -> None:
 
         super().__init__()
 
@@ -26,8 +27,11 @@ class MsgGenerator(nn.Module):
         #    nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
         # )
 
+        self.msg = msg
         self.blocks = torch.nn.ModuleList()
-        self.to_rgb_converters = torch.nn.ModuleList()
+
+        if self.msg:
+            self.to_rgb_converters = torch.nn.ModuleList()
 
         generator_filters = [
             2 ** (x + 1) * depth
@@ -78,15 +82,25 @@ class MsgGenerator(nn.Module):
                     )
                 )
 
-            self.to_rgb_converters.append(
-                nn.Conv2d(
-                    in_channels=generator_filters[i],
-                    out_channels=image_channels,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0
+                if not self.msg:
+                    self.to_rgb = nn.Conv2d(
+                        in_channels=generator_filters[i],
+                        out_channels=image_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0
+                    )
+
+            if self.msg:
+                self.to_rgb_converters.append(
+                    nn.Conv2d(
+                        in_channels=generator_filters[i],
+                        out_channels=image_channels,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0
+                    )
                 )
-            )
 
         if spectral_normalization:
             for block in self.blocks:
@@ -101,9 +115,15 @@ class MsgGenerator(nn.Module):
         w = z
         x = w
 
-        for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
-            x = block(x)
-            output = torch.tanh(to_rgb(x))
-            outputs.append(output)
+        if self.msg:
+            for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
+                x = block(x)
+                output = torch.tanh(to_rgb(x))
+                outputs.append(output)
+        else:
+            for block in self.blocks:
+                x = block(x)
+
+            outputs.append(torch.tanh(self.to_rgb(x)))
 
         return outputs, w

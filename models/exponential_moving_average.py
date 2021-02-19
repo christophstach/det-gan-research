@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from copy import deepcopy
 from sys import stderr
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -45,7 +46,7 @@ class ExponentialMovingAverage(nn.Module):
             # buffers are copied
             shadow_buffers[name].copy_(buffer)
 
-    def forward(self, z: torch.Tensor) -> torch.Tensor:
+    def forward(self, z: List[torch.Tensor]) -> List[torch.Tensor]:
         if self.training:
             return self.model(z)
         else:
