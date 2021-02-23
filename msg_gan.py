@@ -1,11 +1,13 @@
-from typing import Any, Dict
-
 import math
+from typing import Any, Dict
+from typing import List
+
 import torch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
-from torchvision.utils import make_grid
+from torch import Tensor
 from torch.nn.utils import clip_grad_norm_
+from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
@@ -167,9 +169,10 @@ class MsgGANTrail(PyTorchTrial):
             self.context.get_per_slot_batch_size()
         )
 
-    def optimize_discriminator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(False)
+    def optimize_discriminator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
+        self.discriminator.train()
         self.discriminator.requires_grad_(True)
+        self.generator.requires_grad_(False)
 
         fake_images, w = self.generator(z)
 
@@ -177,7 +180,7 @@ class MsgGANTrail(PyTorchTrial):
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
 
         real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator([img.detach() for img in fake_images])
+        fake_validity = self.discriminator([image.detach() for image in fake_images])
 
         gp = self.gradient_penalty(w, real_images, fake_images)
         d_ortho = self.d_orthogonal_regularizer(w, real_images, fake_images)
@@ -196,11 +199,14 @@ class MsgGANTrail(PyTorchTrial):
 
         self.context.step_optimizer(self.opt_d)
 
+        self.discriminator.eval()
+
         return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
-    def optimize_generator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(True)
+    def optimize_generator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
+        self.generator.train()
         self.discriminator.requires_grad_(False)
+        self.generator.requires_grad_(True)
 
         fake_images, w = self.generator(z)
 
@@ -228,6 +234,8 @@ class MsgGANTrail(PyTorchTrial):
 
         if self.ema:
             self.generator.update()
+
+        self.generator.eval()
 
         return g_loss, plr, g_ortho, g_grad_norm, in_sigma
 

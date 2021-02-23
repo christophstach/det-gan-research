@@ -57,12 +57,12 @@ hyperparameters:
   d_orthogonal_regularizer_coefficient: 0.0
 
   g_optimizer: Adam
-  g_lr: 0.0001
+  g_lr: 0.0002
   g_b1: 0.5
   g_b2: 0.999
   
   d_optimizer: Adam
-  d_lr: 0.0004
+  d_lr: 0.0002
   d_b1: 0.5
   d_b2: 0.999
 
@@ -75,7 +75,7 @@ hyperparameters:
   d_max_filters: 0
 
   g_activation_fn: lrelu
-  g_normalization: instance
+  g_normalization: batch
   g_spectral_normalization: false
 
   d_activation_fn: lrelu

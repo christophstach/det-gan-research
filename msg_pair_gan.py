@@ -1,18 +1,14 @@
-from typing import Any, Dict, Union, Tuple, List
-
 import math
-import torch
+from typing import Any, Dict, Union, List
 
-from torch import Tensor
-from determined import pytorch
+import torch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+from torch import Tensor
 from torchvision.utils import make_grid
-from torch.nn.utils import clip_grad_norm_
 
 import datasets as ds
 import utils
-from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer
 from metrics import Instability, InceptionScore
 from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage, BinaryDiscriminator, UnaryDiscriminator
 from utils.types import TorchData
@@ -190,28 +186,24 @@ class MsgPairGANTrail(PyTorchTrial):
             real_images2 = [real_images2]
             real_images3 = [real_images3]
 
-        fake_images1, w = self.generator(z1)
-        fake_images2, w = self.generator(z2)
-        fake_images3, w = self.generator(z3)
-
         d_loss, loss_same_real, loss_same_fake, loss_different = self.optimize_discriminator([
-            real_images1,
-            real_images2,
-            real_images3
+            z1,
+            z2,
+            z3
         ], [
-            fake_images1,
-            fake_images2,
-            fake_images3
+            real_images1,
+            real_images1,
+            real_images1
         ])
 
         g_loss, alpha = self.optimize_generator([
+            z1,
+            z2,
+            z3
+        ], [
             real_images1,
             real_images2,
             real_images3
-        ], [
-            fake_images1,
-            fake_images2,
-            fake_images3
         ], batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
@@ -227,21 +219,27 @@ class MsgPairGANTrail(PyTorchTrial):
             'loss_different': loss_different
         }
 
-    def optimize_discriminator(self, real_images: List[List[Tensor]], fake_images: List[List[Tensor]]):
-        # self.generator.requires_grad_(False)
-        # self.discriminator.requires_grad_(True)
-        # self.binary_discriminator.requires_grad_(True)
+    def optimize_discriminator(self, zs: List[Tensor], real_images: List[List[Tensor]]):
+        self.discriminator.train()
+        self.binary_discriminator.train()
+        self.discriminator.requires_grad_(True)
+        self.binary_discriminator.requires_grad_(True)
+        self.generator.requires_grad_(False)
 
+        z1, z2, z3 = zs
         real_images1, real_images2, real_images3 = real_images
-        fake_images1, fake_images2, fake_images3 = fake_images
+
+        fake_images1, w1 = self.generator(z1)
+        fake_images2, w2 = self.generator(z2)
+        fake_images3, w3 = self.generator(z3)
 
         validity_real1 = self.discriminator(real_images1)
         validity_real2 = self.discriminator(real_images2)
         validity_real3 = self.discriminator(real_images3)
 
-        validity_fake1 = self.discriminator(fake_images1).detach()
-        validity_fake2 = self.discriminator(fake_images2).detach()
-        validity_fake3 = self.discriminator(fake_images3).detach()
+        validity_fake1 = self.discriminator([image.detach() for image in fake_images1])
+        validity_fake2 = self.discriminator([image.detach() for image in fake_images2])
+        validity_fake3 = self.discriminator([image.detach() for image in fake_images3])
 
         # train with same
         same_real_out = self.binary_discriminator(validity_real1 + torch.mean(validity_real2))
@@ -259,19 +257,12 @@ class MsgPairGANTrail(PyTorchTrial):
 
         self.context.backward(d_loss)
         self.context.step_optimizer(self.opt_d)
+        self.discriminator.eval()
+        self.binary_discriminator.eval()
 
         return d_loss, loss_same_real, loss_same_fake, loss_different
 
-    def optimize_generator(self, real_images: List[List[Tensor]], fake_images: List[List[Tensor]], batch_idx: int):
-        # self.generator.requires_grad_(True)
-        # self.discriminator.requires_grad_(False)
-        # self.binary_discriminator.requires_grad_(False)
-
-        self.generator.zero_grad()
-
-        real_images1, real_images2, real_images3 = real_images
-        fake_images1, fake_images2, fake_images3 = fake_images
-
+    def optimize_generator(self, zs: List[Tensor], real_images: List[List[Tensor]], batch_idx: int):
         # annealing
         if batch_idx < self.wait_steps:
             alpha = self.alpha_init
@@ -279,6 +270,18 @@ class MsgPairGANTrail(PyTorchTrial):
             alpha = self.alpha_init * (1. - (batch_idx - self.wait_steps) / self.anneal_steps)
         else:
             alpha = 0.0
+
+        self.generator.train()
+        self.discriminator.requires_grad_(False)
+        self.binary_discriminator.requires_grad_(False)
+        self.generator.requires_grad_(True)
+
+        z1, z2, z3 = zs
+        real_images1, real_images2, real_images3 = real_images
+
+        fake_images1, w1 = self.generator(z1)
+        fake_images2, w2 = self.generator(z2)
+        fake_images3, w3 = self.generator(z3)
 
         # validity_real1 = self.discriminator(real_images1)
         # validity_real2 = self.discriminator(real_images2)
@@ -304,6 +307,7 @@ class MsgPairGANTrail(PyTorchTrial):
 
         self.context.backward(g_loss)
         self.context.step_optimizer(self.opt_g)
+        self.generator.eval()
 
         return g_loss, alpha
 
