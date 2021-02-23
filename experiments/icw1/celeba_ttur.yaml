@@ -1,4 +1,4 @@
-description: MSG GAN Const
+description: "ICW1: Celeba HQ - TTUR"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -39,7 +39,7 @@ hyperparameters:
 
   msg: false
   loss_fn: WGAN
-  ema: true
+  ema: false
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
@@ -52,32 +52,30 @@ hyperparameters:
   d_orthogonal_regularizer_coefficient: 0.0
 
   g_optimizer: Adam
-  # g_lr: 0.0001 # Good value from OAdam paper
-  g_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  g_lr: 0.0001
   g_b1: 0.5
   g_b2: 0.999
-  
+
   d_optimizer: Adam
-  # d_lr: 0.0001 # Good value from OAdam paper
-  d_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  d_lr: 0.0004
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 1
+  g_depth: 4
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 1
+  d_depth: 4
   d_min_filters: 0
   d_max_filters: 0
 
   g_activation_fn: lrelu
-  g_normalization: instance
+  g_normalization: batch
   g_spectral_normalization: false
 
   d_activation_fn: lrelu
   d_normalization: passthrough
-  d_spectral_normalization: true
+  d_spectral_normalization: false
 
   inception_score_images: 2048
   evaluation_model: "vggface2"

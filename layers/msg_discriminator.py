@@ -88,16 +88,18 @@ class MsgDiscriminatorLastBlock(nn.Module):
     def __init__(self, in_channels, norm, activation_fn, bias=False):
         super().__init__()
 
-        self.miniBatchStdDev = l.MinibatchStdDev()
+        # self.miniBatchStdDev = l.MinibatchStdDev()
 
         self.conv1 = nn.Conv2d(
-            in_channels + 1,
+            in_channels,
             in_channels,
             kernel_size=3,
             stride=1,
             padding=1,
             bias=bias
         )
+
+        # main.add_module('End-Conv2d', torch.nn.Conv2d(ndf * mult, 2, 4, 1, 0, bias=False))
 
         self.conv2 = nn.Conv2d(
             in_channels,
@@ -110,7 +112,7 @@ class MsgDiscriminatorLastBlock(nn.Module):
 
         self.validator = nn.Conv2d(
             in_channels,
-            1,
+            2,
             kernel_size=1,
             stride=1,
             padding=0,
@@ -124,7 +126,7 @@ class MsgDiscriminatorLastBlock(nn.Module):
         self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x):
-        x = self.miniBatchStdDev(x)
+        # x = self.miniBatchStdDev(x)
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = self.norm2(self.act_fn2(self.conv2(x)))

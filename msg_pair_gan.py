@@ -1,7 +1,10 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union, Tuple, List
 
 import math
 import torch
+
+from torch import Tensor
+from determined import pytorch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 from torchvision.utils import make_grid
@@ -11,11 +14,11 @@ import datasets as ds
 import utils
 from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer
 from metrics import Instability, InceptionScore
-from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage
+from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage, BinaryDiscriminator, UnaryDiscriminator
 from utils.types import TorchData
 
 
-class MsgGANTrail(PyTorchTrial):
+class MsgPairGANTrail(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
         super().__init__(context)
 
@@ -26,6 +29,10 @@ class MsgGANTrail(PyTorchTrial):
         self.image_size = self.context.get_hparam('image_size')
         self.image_channels = self.context.get_hparam('image_channels')
         self.latent_dimension = self.context.get_hparam('latent_dimension')
+
+        self.alpha_init = self.context.get_hparam('alpha_init')
+        self.wait_steps = self.context.get_hparam('wait_steps')
+        self.anneal_steps = self.context.get_hparam('anneal_steps')
 
         self.msg = self.context.get_hparam('msg')
         self.loss_fn = self.context.get_hparam('loss_fn')
@@ -72,6 +79,9 @@ class MsgGANTrail(PyTorchTrial):
         self.num_log_images = 6
         self.log_images_interval = 1000
 
+        self.same_labels = None
+        self.different_labels = None
+
         generator_model = MsgGenerator(
             depth=self.g_depth,
             min_filters=self.g_min_filters,
@@ -97,15 +107,18 @@ class MsgGANTrail(PyTorchTrial):
             msg=self.msg
         )
 
+        binary_discriminator_model = BinaryDiscriminator()
+        discriminator_model = UnaryDiscriminator(discriminator_model)
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
 
         self.discriminator = self.context.wrap_model(discriminator_model)
+        self.binary_discriminator = self.context.wrap_model(binary_discriminator_model)
         self.generator = self.context.wrap_model(generator_model)
 
         self.opt_d = self.context.wrap_optimizer(
             utils.create_optimizer(
                 self.d_optimizer,
-                self.discriminator.parameters(),
+                list(self.discriminator.parameters()) + list(self.binary_discriminator.parameters()),
                 self.d_lr,
                 (self.d_b1, self.d_b2)
             )
@@ -120,31 +133,7 @@ class MsgGANTrail(PyTorchTrial):
             )
         )
 
-        self.loss = utils.create_loss_fn(self.loss_fn)
-
-        self.gradient_penalty = GradientPenalty(
-            self.context,
-            self.discriminator,
-            coefficient=self.gradient_penalty_coefficient,
-            center=self.gradient_penalty_center,
-        )
-
-        self.path_length_regularizer = PathLengthRegularizer(
-            self.context,
-            coefficient=self.path_length_regularizer_coefficient
-        )
-
-        self.g_orthogonal_regularizer = OrthogonalRegularizer(
-            self.context,
-            self.generator,
-            self.g_orthogonal_regularizer_coefficient
-        )
-
-        self.d_orthogonal_regularizer = OrthogonalRegularizer(
-            self.context,
-            self.discriminator,
-            self.d_orthogonal_regularizer_coefficient
-        )
+        self.loss = torch.nn.BCEWithLogitsLoss()
 
         if self.msg:
             self.image_sizes = [
@@ -166,127 +155,156 @@ class MsgGANTrail(PyTorchTrial):
             self.context.get_per_slot_batch_size()
         )
 
-    def optimize_discriminator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(False)
-        self.discriminator.requires_grad_(True)
+    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Union[Tensor, Dict[str, Any]]:
+        assert batch[0].shape[0] % 3 == 0
 
-        fake_images, w = self.generator(z)
-
-        real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
-        fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
-
-        real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator([img.detach() for img in fake_images])
-
-        gp = self.gradient_penalty(w, real_images, fake_images)
-        d_ortho = self.d_orthogonal_regularizer(w, real_images, fake_images)
-        d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
-
-        total = d_loss
-        total = total + gp if gp is not None else total
-        total = total + d_ortho if d_ortho is not None else total
-
-        self.context.backward(total)
-
-        if self.clip_grad_norm > 0:
-            clip_grad_norm_(self.discriminator.parameters(), self.clip_grad_norm)
-
-        d_grad_norm = utils.grad_norm(self.discriminator.parameters())
-
-        self.context.step_optimizer(self.opt_d)
-
-        return d_loss, gp, d_ortho, d_grad_norm, in_sigma
-
-    def optimize_generator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(True)
-        self.discriminator.requires_grad_(False)
-
-        fake_images, w = self.generator(z)
-
-        real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
-        fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
-
-        real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator(fake_images)
-
-        plr = self.path_length_regularizer(w, real_images, fake_images)
-        g_ortho = self.g_orthogonal_regularizer(w, real_images, fake_images)
-        g_loss = self.loss.generator_loss(real_validity, fake_validity)
-
-        total = g_loss
-        total = total + plr if plr is not None else total
-        total = total + g_ortho if g_ortho is not None else total
-
-        self.context.backward(total)
-
-        if self.clip_grad_norm > 0:
-            clip_grad_norm_(self.generator.parameters(), self.clip_grad_norm)
-
-        g_grad_norm = utils.grad_norm(self.generator.parameters())
-        self.context.step_optimizer(self.opt_g)
-
-        if self.ema:
-            self.generator.update()
-
-        return g_loss, plr, g_ortho, g_grad_norm, in_sigma
-
-    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
         real_images, _ = batch
         batch_size = real_images.shape[0]
+        divided_batch_size = batch_size // 3
+
+        self.same_labels = torch.full((divided_batch_size,), 1.0)
+        self.different_labels = torch.full((divided_batch_size,), 0.0)
+
+        self.same_labels = self.context.to_device(self.same_labels)
+        self.different_labels = self.context.to_device(self.different_labels)
+
+        z1 = utils.sample_noise(divided_batch_size, self.latent_dimension)
+        z2 = utils.sample_noise(divided_batch_size, self.latent_dimension)
+        z3 = utils.sample_noise(divided_batch_size, self.latent_dimension)
+
+        z1 = self.context.to_device(z1)
+        z2 = self.context.to_device(z2)
+        z3 = self.context.to_device(z3)
+
+        real_images1 = real_images[:divided_batch_size]
+        real_images2 = real_images[divided_batch_size:divided_batch_size * 2]
+        real_images3 = real_images[divided_batch_size * 2:divided_batch_size * 3]
 
         if self.msg:
-            real_images = utils.to_scaled_images(real_images, self.image_size)
+            real_images1 = utils.to_scaled_images(real_images1, self.image_size)
+            real_images2 = utils.to_scaled_images(real_images2, self.image_size)
+            real_images3 = utils.to_scaled_images(real_images3, self.image_size)
         else:
-            real_images = [real_images]
+            real_images1 = [real_images1]
+            real_images2 = [real_images2]
+            real_images3 = [real_images3]
 
-        z = utils.sample_noise(batch_size, self.latent_dimension)
-        z = self.context.to_device(z)
+        fake_images1, w = self.generator(z1)
+        fake_images2, w = self.generator(z2)
+        fake_images3, w = self.generator(z3)
 
-        d_loss, gp, d_ortho, d_grad_norm, in_sigma = self.optimize_discriminator(z, real_images, batch_idx)
-        g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(z, real_images, batch_idx)
+        d_loss, loss_same_real, loss_same_fake, loss_different = self.optimize_discriminator([
+            real_images1,
+            real_images2,
+            real_images3
+        ], [
+            fake_images1,
+            fake_images2,
+            fake_images3
+        ])
+
+        g_loss, alpha = self.optimize_generator([
+            real_images1,
+            real_images2,
+            real_images3
+        ], [
+            fake_images1,
+            fake_images2,
+            fake_images3
+        ], batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx)
             self.log_sample_images(batch_idx)
 
-        logs = {
-            'loss': d_loss + (gp if gp else 0.0),
-            'g_loss': g_loss,
-            'd_loss': d_loss,
-            'gp': gp,
-            'plr': plr,
-            'g_ortho': g_ortho,
-            'd_ortho': d_ortho,
-            'in_sigma': in_sigma,
-            'g_grad_norm': g_grad_norm,
-            'd_grad_norm': d_grad_norm
-        }
-
         return {
-            key: (logs[key] if logs[key] is not None else 0.0)
-            for key in logs
+            'd_loss': d_loss,
+            'g_loss': g_loss,
+            'alpha': alpha,
+            'loss_same_real': loss_same_real,
+            'loss_same_fake': loss_same_fake,
+            'loss_different': loss_different
         }
 
-    def build_training_data_loader(self) -> DataLoader:
-        train_data = utils.create_dataset(dataset=self.dataset, size=self.image_size, channels=self.image_channels)
+    def optimize_discriminator(self, real_images: List[List[Tensor]], fake_images: List[List[Tensor]]):
+        # self.generator.requires_grad_(False)
+        # self.discriminator.requires_grad_(True)
+        # self.binary_discriminator.requires_grad_(True)
 
-        return DataLoader(
-            train_data,
-            batch_size=self.context.get_per_slot_batch_size(),
-            drop_last=True
-        )
+        real_images1, real_images2, real_images3 = real_images
+        fake_images1, fake_images2, fake_images3 = fake_images
 
-    def build_validation_data_loader(self) -> DataLoader:
-        validation_data = ds.noise(
-            length=self.context.get_per_slot_batch_size(),
-            noise_size=self.latent_dimension
-        )
+        validity_real1 = self.discriminator(real_images1)
+        validity_real2 = self.discriminator(real_images2)
+        validity_real3 = self.discriminator(real_images3)
 
-        return DataLoader(
-            validation_data,
-            batch_size=self.context.get_per_slot_batch_size(),
-            shuffle=False
-        )
+        validity_fake1 = self.discriminator(fake_images1).detach()
+        validity_fake2 = self.discriminator(fake_images2).detach()
+        validity_fake3 = self.discriminator(fake_images3).detach()
+
+        # train with same
+        same_real_out = self.binary_discriminator(validity_real1 + torch.mean(validity_real2))
+        same_fake_out = self.binary_discriminator(torch.mean(validity_fake1) + validity_fake2)
+
+        loss_same_real = self.loss(same_real_out, self.same_labels)
+        loss_same_fake = self.loss(same_fake_out, self.same_labels)
+
+        # train with different
+        different_out = self.binary_discriminator(validity_real3 + torch.mean(validity_fake3))
+        loss_different = self.loss(different_out, self.different_labels)
+
+        # update discriminator
+        d_loss = loss_same_real + loss_same_fake + 2 * loss_different
+
+        self.context.backward(d_loss)
+        self.context.step_optimizer(self.opt_d)
+
+        return d_loss, loss_same_real, loss_same_fake, loss_different
+
+    def optimize_generator(self, real_images: List[List[Tensor]], fake_images: List[List[Tensor]], batch_idx: int):
+        # self.generator.requires_grad_(True)
+        # self.discriminator.requires_grad_(False)
+        # self.binary_discriminator.requires_grad_(False)
+
+        self.generator.zero_grad()
+
+        real_images1, real_images2, real_images3 = real_images
+        fake_images1, fake_images2, fake_images3 = fake_images
+
+        # annealing
+        if batch_idx < self.wait_steps:
+            alpha = self.alpha_init
+        elif batch_idx < self.wait_steps + self.anneal_steps:
+            alpha = self.alpha_init * (1. - (batch_idx - self.wait_steps) / self.anneal_steps)
+        else:
+            alpha = 0.0
+
+        # validity_real1 = self.discriminator(real_images1)
+        # validity_real2 = self.discriminator(real_images2)
+        validity_real3 = self.discriminator(real_images3)
+
+        validity_fake1 = self.discriminator(fake_images1)
+        validity_fake2 = self.discriminator(fake_images2)
+        validity_fake3 = self.discriminator(fake_images3)
+
+        # train with same fake
+        same_fake_out = self.binary_discriminator(torch.mean(validity_fake1) + validity_fake2)
+
+        loss_same_fake_different = self.loss(same_fake_out, self.same_labels)
+        loss_same_fake_same = self.loss(same_fake_out, self.different_labels)
+
+        # train with different
+        different_out = self.binary_discriminator(validity_real3 + torch.mean(validity_fake3))
+
+        loss_different = self.loss(different_out, self.same_labels)
+
+        # update generator
+        g_loss = 2 * loss_different + loss_same_fake_different * alpha - loss_same_fake_same * (1 - alpha)
+
+        self.context.backward(g_loss)
+        self.context.step_optimizer(self.opt_g)
+
+        return g_loss, alpha
 
     def log_fixed_images(self, batch_idx):
         self.generator.eval()
@@ -324,6 +342,27 @@ class MsgGANTrail(PyTorchTrial):
             self.logger.writer.add_image(f'generated_sample_images_{size}x{size}', grid, batch_idx)
 
         self.generator.train()
+
+    def build_training_data_loader(self) -> DataLoader:
+        train_data = utils.create_dataset(dataset=self.dataset, size=self.image_size, channels=self.image_channels)
+
+        return DataLoader(
+            train_data,
+            batch_size=self.context.get_per_slot_batch_size() * 3,
+            drop_last=True
+        )
+
+    def build_validation_data_loader(self) -> DataLoader:
+        validation_data = ds.noise(
+            length=self.context.get_per_slot_batch_size(),
+            noise_size=self.latent_dimension
+        )
+
+        return DataLoader(
+            validation_data,
+            batch_size=self.context.get_per_slot_batch_size(),
+            shuffle=False
+        )
 
     def evaluate_full_dataset(self, data_loader: DataLoader) -> Dict[str, Any]:
         self.generator.eval()

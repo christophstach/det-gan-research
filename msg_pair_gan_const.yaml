@@ -1,5 +1,5 @@
-description: MSG GAN Const
-entrypoint: msg_gan:MsgGANTrail
+description: MSG Pair GAN Const
+entrypoint: msg_pair_gan:MsgPairGANTrail
 
 # records_per_epoch: 60000 # for mnist
 # records_per_epoch: 30000 # for celebAHQ
@@ -37,9 +37,14 @@ hyperparameters:
   image_channels: 3
   latent_dimension: 128
 
+  # Annealing
+  alpha_init: 1.0
+  wait_steps: 500
+  anneal_steps: 500
+
   msg: false
   loss_fn: WGAN
-  ema: true
+  ema: false
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
@@ -52,22 +57,20 @@ hyperparameters:
   d_orthogonal_regularizer_coefficient: 0.0
 
   g_optimizer: Adam
-  # g_lr: 0.0001 # Good value from OAdam paper
-  g_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  g_lr: 0.0001
   g_b1: 0.5
   g_b2: 0.999
   
   d_optimizer: Adam
-  # d_lr: 0.0001 # Good value from OAdam paper
-  d_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  d_lr: 0.0004
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 1
+  g_depth: 4
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 1
+  d_depth: 4
   d_min_filters: 0
   d_max_filters: 0
 

@@ -25,6 +25,8 @@ class MsgDiscriminator(torch.nn.Module):
         self.msg = msg
         self.blocks = torch.nn.ModuleList()
 
+
+
         if self.msg:
             self.from_rgb_combiners = torch.nn.ModuleList()
 
