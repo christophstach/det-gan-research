@@ -94,7 +94,7 @@ class MsgDiscriminatorLastBlock(nn.Module):
             self.miniBatchStdDev = l.MinibatchStdDev()
 
         self.conv1 = nn.Conv2d(
-            in_channels,
+            in_channels if self.unary else in_channels + 1,
             in_channels,
             kernel_size=3,
             stride=1,
