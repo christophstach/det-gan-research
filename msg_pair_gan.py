@@ -104,7 +104,8 @@ class MsgPairGANTrail(PyTorchTrial):
             activation_fn=self.d_activation_fn,
             normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization,
-            msg=self.msg
+            msg=self.msg,
+            unary=True
         )
 
         binary_discriminator_model = BinaryDiscriminator()

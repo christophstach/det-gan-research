@@ -94,7 +94,8 @@ class MsgGANTrail(PyTorchTrial):
             activation_fn=self.d_activation_fn,
             normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization,
-            msg=self.msg
+            msg=self.msg,
+            unary=False
         )
 
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model

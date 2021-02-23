@@ -18,14 +18,13 @@ class MsgDiscriminator(torch.nn.Module):
                  normalization: str,
                  activation_fn: str,
                  spectral_normalization: bool,
-                 msg: bool) -> None:
+                 msg: bool,
+                 unary: bool) -> None:
 
         super().__init__()
 
         self.msg = msg
         self.blocks = torch.nn.ModuleList()
-
-
 
         if self.msg:
             self.from_rgb_combiners = torch.nn.ModuleList()
@@ -90,7 +89,8 @@ class MsgDiscriminator(torch.nn.Module):
                     l.MsgDiscriminatorLastBlock(
                         discriminator_filters[i] + additional_filters,
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        unary=unary
                     )
                 )
 
