@@ -1,4 +1,4 @@
-description: MSG Pair GAN Const
+description: "PairGAN: CelebA HQ - 128x128"
 entrypoint: msg_pair_gan:MsgPairGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -33,7 +33,7 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 64
+  image_size: 128
   image_channels: 3
   latent_dimension: 128
 
@@ -60,7 +60,7 @@ hyperparameters:
   g_lr: 0.0002
   g_b1: 0.5
   g_b2: 0.999
-  
+
   d_optimizer: Adam
   d_lr: 0.0002
   d_b1: 0.5
@@ -75,12 +75,12 @@ hyperparameters:
   d_max_filters: 0
 
   g_activation_fn: lrelu
-  g_normalization: batch
+  g_normalization: pixel
   g_spectral_normalization: false
 
   d_activation_fn: lrelu
-  d_normalization: batch
-  d_spectral_normalization: false
+  d_normalization: passthrough
+  d_spectral_normalization: true
 
   inception_score_images: 2048
   evaluation_model: "vggface2"
