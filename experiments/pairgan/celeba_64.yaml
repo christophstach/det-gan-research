@@ -43,8 +43,7 @@ hyperparameters:
   anneal_steps: 500
 
   msg: true
-  loss_fn: WGAN
-  ema: false
+  ema: true
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
@@ -75,7 +74,7 @@ hyperparameters:
   d_max_filters: 0
 
   g_activation_fn: lrelu
-  g_normalization: pixel
+  g_normalization: batch
   g_spectral_normalization: false
 
   d_activation_fn: lrelu

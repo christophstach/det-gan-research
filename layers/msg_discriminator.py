@@ -90,11 +90,10 @@ class MsgDiscriminatorLastBlock(nn.Module):
 
         self.unary = unary
 
-        if not self.unary:
-            self.miniBatchStdDev = l.MinibatchStdDev()
+        self.miniBatchStdDev = l.MinibatchStdDev()
 
         self.conv1 = nn.Conv2d(
-            in_channels if self.unary else in_channels + 1,
+            in_channels + 1,
             in_channels,
             kernel_size=3,
             stride=1,
@@ -127,8 +126,7 @@ class MsgDiscriminatorLastBlock(nn.Module):
         self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x):
-        if not self.unary:
-            x = self.miniBatchStdDev(x)
+        x = self.miniBatchStdDev(x)
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = self.norm2(self.act_fn2(self.conv2(x)))

@@ -31,7 +31,6 @@ class MsgPairGANTrail(PyTorchTrial):
         self.anneal_steps = self.context.get_hparam('anneal_steps')
 
         self.msg = self.context.get_hparam('msg')
-        self.loss_fn = self.context.get_hparam('loss_fn')
         self.ema = self.context.get_hparam('ema')
         self.ema_decay = self.context.get_hparam('ema_decay')
         self.instance_noise_until = self.context.get_hparam('instance_noise_until')
@@ -220,8 +219,6 @@ class MsgPairGANTrail(PyTorchTrial):
         }
 
     def optimize_discriminator(self, zs: List[Tensor], real_images: List[List[Tensor]]):
-        self.discriminator.train()
-        self.binary_discriminator.train()
         self.discriminator.requires_grad_(True)
         self.binary_discriminator.requires_grad_(True)
         self.generator.requires_grad_(False)
@@ -257,8 +254,6 @@ class MsgPairGANTrail(PyTorchTrial):
 
         self.context.backward(d_loss)
         self.context.step_optimizer(self.opt_d)
-        self.discriminator.eval()
-        self.binary_discriminator.eval()
 
         return d_loss, loss_same_real, loss_same_fake, loss_different
 
@@ -271,7 +266,6 @@ class MsgPairGANTrail(PyTorchTrial):
         else:
             alpha = 0.0
 
-        self.generator.train()
         self.discriminator.requires_grad_(False)
         self.binary_discriminator.requires_grad_(False)
         self.generator.requires_grad_(True)
@@ -307,7 +301,9 @@ class MsgPairGANTrail(PyTorchTrial):
 
         self.context.backward(g_loss)
         self.context.step_optimizer(self.opt_g)
-        self.generator.eval()
+
+        if self.ema:
+            self.generator.update()
 
         return g_loss, alpha
 
