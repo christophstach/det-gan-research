@@ -18,11 +18,14 @@ class MsgDiscriminator(torch.nn.Module):
                  normalization: str,
                  activation_fn: str,
                  spectral_normalization: bool,
-                 msg: bool) -> None:
+                 msg: bool,
+                 unary: bool,
+                 pack: int) -> None:
 
         super().__init__()
 
         self.msg = msg
+        self.pack = pack
         self.blocks = torch.nn.ModuleList()
 
         if self.msg:
@@ -61,13 +64,18 @@ class MsgDiscriminator(torch.nn.Module):
                         image_channels,
                         discriminator_filters[i + 1],
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        pack=pack
                     )
                 )
 
                 if self.msg:
                     self.from_rgb_combiners.append(
-                        l.LinCatFromRgbCombiner(image_channels=image_channels, channels=discriminator_filters[i + 1])
+                        l.LinCatFromRgbCombiner(
+                            image_channels=image_channels,
+                            channels=discriminator_filters[i + 1],
+                            pack=self.pack
+                        )
                     )
             elif i < len(discriminator_filters) - 1:
                 self.blocks.append(
@@ -81,14 +89,19 @@ class MsgDiscriminator(torch.nn.Module):
 
                 if self.msg:
                     self.from_rgb_combiners.append(
-                        l.LinCatFromRgbCombiner(image_channels=image_channels, channels=discriminator_filters[i + 1])
+                        l.LinCatFromRgbCombiner(
+                            image_channels=image_channels,
+                            channels=discriminator_filters[i + 1],
+                            pack=self.pack
+                        )
                     )
             else:
                 self.blocks.append(
                     l.MsgDiscriminatorLastBlock(
                         discriminator_filters[i] + additional_filters,
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        unary=unary
                     )
                 )
 

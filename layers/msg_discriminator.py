@@ -7,11 +7,13 @@ import utils
 
 
 class MsgDiscriminatorFirstBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, pack=1, bias=False):
         super().__init__()
 
+        self.pack = pack
+
         self.conv1 = nn.Conv2d(
-            in_channels,
+            in_channels * self.pack,
             in_channels,
             kernel_size=3,
             stride=1,
@@ -37,6 +39,9 @@ class MsgDiscriminatorFirstBlock(nn.Module):
         self.avgPool = nn.AvgPool2d(2, 2)
 
     def forward(self, x):
+        if self.pack > 1:
+            x = torch.reshape(x, (-1, x.shape[1] * self.pack, x.shape[2], x.shape[3]))
+
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
@@ -85,8 +90,10 @@ class MsgDiscriminatorIntermediateBlock(nn.Module):
 
 
 class MsgDiscriminatorLastBlock(nn.Module):
-    def __init__(self, in_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, unary=False, bias=False):
         super().__init__()
+
+        self.unary = unary
 
         self.miniBatchStdDev = l.MinibatchStdDev()
 
@@ -110,7 +117,7 @@ class MsgDiscriminatorLastBlock(nn.Module):
 
         self.validator = nn.Conv2d(
             in_channels,
-            1,
+            2 if self.unary else 1,
             kernel_size=1,
             stride=1,
             padding=0,
@@ -135,19 +142,26 @@ class MsgDiscriminatorLastBlock(nn.Module):
 
 
 class SimpleFromRgbCombiner(nn.Module):
-    def __init__(self):
+    def __init__(self, pack: int):
         super().__init__()
 
+        self.pack = pack
+
     def forward(self, x1, x2):
+        if self.pack > 1:
+            x1 = torch.reshape(x1, (-1, x1.shape[1] * self.pack, x1.shape[2], x1.shape[3]))
+
         return torch.cat([x1, x2], dim=1)
 
 
 class LinCatFromRgbCombiner(nn.Module):
-    def __init__(self, image_channels, channels, bias=False):
+    def __init__(self, image_channels: int, channels: int, pack: int, bias=False):
         super().__init__()
 
+        self.pack = pack
+
         self.conv = nn.Conv2d(
-            in_channels=image_channels,
+            in_channels=image_channels * self.pack,
             out_channels=channels,
             kernel_size=1,
             stride=1,
@@ -156,17 +170,22 @@ class LinCatFromRgbCombiner(nn.Module):
         )
 
     def forward(self, x1, x2):
+        if self.pack > 1:
+            x1 = torch.reshape(x1, (-1, x1.shape[1] * self.pack, x1.shape[2], x1.shape[3]))
+
         x1 = self.conv(x1)
 
         return torch.cat([x1, x2], dim=1)
 
 
 class CatLinFromRgbCombiner(nn.Module):
-    def __init__(self, image_channels, channels, bias=False):
+    def __init__(self, image_channels: int, channels: int, pack: int, bias=False):
         super().__init__()
 
+        self.pack = pack
+
         self.conv = nn.Conv2d(
-            in_channels=channels + image_channels,
+            in_channels=channels + image_channels * self.pack,
             out_channels=channels,
             kernel_size=1,
             stride=1,
@@ -175,6 +194,9 @@ class CatLinFromRgbCombiner(nn.Module):
         )
 
     def forward(self, x1, x2):
+        if self.pack > 1:
+            x1 = torch.reshape(x1, (-1, x1.shape[1] * self.pack, x1.shape[2], x1.shape[3]))
+
         x = torch.cat([x1, x2], dim=1)
         x = self.conv(x)
 

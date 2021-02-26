@@ -1,11 +1,13 @@
-from typing import Any, Dict
-
 import math
+from typing import Any, Dict
+from typing import List
+
 import torch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
-from torchvision.utils import make_grid
+from torch import Tensor
 from torch.nn.utils import clip_grad_norm_
+from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
@@ -25,10 +27,11 @@ class MsgGANTrail(PyTorchTrial):
         self.dataset = self.context.get_hparam('dataset')
         self.image_size = self.context.get_hparam('image_size')
         self.image_channels = self.context.get_hparam('image_channels')
+        self.latent_dimension = self.context.get_hparam('latent_dimension')
 
         self.msg = self.context.get_hparam('msg')
+        self.pack = self.context.get_hparam('pack')
         self.loss_fn = self.context.get_hparam('loss_fn')
-        self.latent_dimension = self.context.get_hparam('latent_dimension')
         self.ema = self.context.get_hparam('ema')
         self.ema_decay = self.context.get_hparam('ema_decay')
         self.instance_noise_until = self.context.get_hparam('instance_noise_until')
@@ -94,22 +97,15 @@ class MsgGANTrail(PyTorchTrial):
             activation_fn=self.d_activation_fn,
             normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization,
-            msg=self.msg
+            msg=self.msg,
+            unary=False,
+            pack=self.pack
         )
 
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
 
-        self.generator = self.context.wrap_model(generator_model)
         self.discriminator = self.context.wrap_model(discriminator_model)
-
-        self.opt_g = self.context.wrap_optimizer(
-            utils.create_optimizer(
-                self.g_optimizer,
-                self.generator.parameters(),
-                self.g_lr,
-                (self.g_b1, self.g_b2)
-            )
-        )
+        self.generator = self.context.wrap_model(generator_model)
 
         self.opt_d = self.context.wrap_optimizer(
             utils.create_optimizer(
@@ -117,6 +113,15 @@ class MsgGANTrail(PyTorchTrial):
                 self.discriminator.parameters(),
                 self.d_lr,
                 (self.d_b1, self.d_b2)
+            )
+        )
+
+        self.opt_g = self.context.wrap_optimizer(
+            utils.create_optimizer(
+                self.g_optimizer,
+                self.generator.parameters(),
+                self.g_lr,
+                (self.g_b1, self.g_b2)
             )
         )
 
@@ -157,7 +162,11 @@ class MsgGANTrail(PyTorchTrial):
         eval_model, resize_to, num_classes = utils.create_evaluation_model(self.evaluation_model)
         eval_model = self.context.wrap_model(eval_model)
 
-        self.fixed_z = None
+        self.fixed_z = utils.sample_noise(
+            self.num_log_images,
+            self.latent_dimension
+        )
+
         self.instability_metrices = [Instability() for _ in self.image_sizes]
         self.inception_score_metric = InceptionScore(
             eval_model,
@@ -166,9 +175,10 @@ class MsgGANTrail(PyTorchTrial):
             self.context.get_per_slot_batch_size()
         )
 
-    def optimize_discriminator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(False)
+    def optimize_discriminator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
+        self.discriminator.train()
         self.discriminator.requires_grad_(True)
+        self.generator.requires_grad_(False)
 
         fake_images, w = self.generator(z)
 
@@ -176,7 +186,7 @@ class MsgGANTrail(PyTorchTrial):
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
 
         real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator([img.detach() for img in fake_images])
+        fake_validity = self.discriminator([image.detach() for image in fake_images])
 
         gp = self.gradient_penalty(w, real_images, fake_images)
         d_ortho = self.d_orthogonal_regularizer(w, real_images, fake_images)
@@ -195,11 +205,14 @@ class MsgGANTrail(PyTorchTrial):
 
         self.context.step_optimizer(self.opt_d)
 
+        self.discriminator.eval()
+
         return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
-    def optimize_generator(self, z, real_images, batch_idx):
-        self.generator.requires_grad_(True)
+    def optimize_generator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
+        self.generator.train()
         self.discriminator.requires_grad_(False)
+        self.generator.requires_grad_(True)
 
         fake_images, w = self.generator(z)
 
@@ -218,12 +231,17 @@ class MsgGANTrail(PyTorchTrial):
         total = total + g_ortho if g_ortho is not None else total
 
         self.context.backward(total)
-        if self.clip_grad_norm > 0: clip_grad_norm_(self.generator.parameters(), self.clip_grad_norm)
+
+        if self.clip_grad_norm > 0:
+            clip_grad_norm_(self.generator.parameters(), self.clip_grad_norm)
+
         g_grad_norm = utils.grad_norm(self.generator.parameters())
         self.context.step_optimizer(self.opt_g)
 
         if self.ema:
             self.generator.update()
+
+        self.generator.eval()
 
         return g_loss, plr, g_ortho, g_grad_norm, in_sigma
 
@@ -243,8 +261,8 @@ class MsgGANTrail(PyTorchTrial):
         g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(z, real_images, batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
-            self.log_fixed_images(batch_idx, epoch_idx)
-            self.log_sample_images(batch_idx, epoch_idx)
+            self.log_fixed_images(batch_idx)
+            self.log_sample_images(batch_idx)
 
         logs = {
             'loss': d_loss + (gp if gp else 0.0),
@@ -285,17 +303,12 @@ class MsgGANTrail(PyTorchTrial):
             shuffle=False
         )
 
-    def log_fixed_images(self, batch_idx, epoch_idx):
+    def log_fixed_images(self, batch_idx):
         self.generator.eval()
 
-        if self.fixed_z is None:
-            self.fixed_z = utils.sample_noise(
-                self.num_log_images,
-                self.latent_dimension
-            )
-            self.fixed_z = self.context.to_device(self.fixed_z)
+        fixed_z = self.context.to_device(self.fixed_z)
+        fixed_images, _ = self.generator(fixed_z)
 
-        fixed_images, _ = self.generator(self.fixed_z)
         for images in fixed_images:
             size = str(images.shape[-1])
             images = utils.shift_image_range(images)
@@ -304,7 +317,7 @@ class MsgGANTrail(PyTorchTrial):
 
         self.generator.train()
 
-    def log_sample_images(self, batch_idx, epoch_idx):
+    def log_sample_images(self, batch_idx):
         self.generator.eval()
 
         z = utils.sample_noise(
