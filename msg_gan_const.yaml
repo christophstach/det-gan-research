@@ -33,13 +33,14 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 64
+  image_size: 128
   image_channels: 3
   latent_dimension: 128
 
   msg: false
+  pack: 1
   loss_fn: WGAN
-  ema: true
+  ema: false
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
@@ -63,16 +64,16 @@ hyperparameters:
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 1
+  g_depth: 2
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 1
+  d_depth: 5
   d_min_filters: 0
   d_max_filters: 0
 
   g_activation_fn: lrelu
-  g_normalization: instance
+  g_normalization: batch
   g_spectral_normalization: false
 
   d_activation_fn: lrelu

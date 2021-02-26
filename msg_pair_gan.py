@@ -31,6 +31,7 @@ class MsgPairGANTrail(PyTorchTrial):
         self.anneal_steps = self.context.get_hparam('anneal_steps')
 
         self.msg = self.context.get_hparam('msg')
+        self.pack = self.context.get_hparam('pack')
         self.ema = self.context.get_hparam('ema')
         self.ema_decay = self.context.get_hparam('ema_decay')
         self.instance_noise_until = self.context.get_hparam('instance_noise_until')
@@ -100,7 +101,8 @@ class MsgPairGANTrail(PyTorchTrial):
             normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization,
             msg=self.msg,
-            unary=True
+            unary=True,
+            pack=self.pack
         )
 
         binary_discriminator_model = BinaryDiscriminator()
@@ -142,7 +144,11 @@ class MsgPairGANTrail(PyTorchTrial):
         eval_model, resize_to, num_classes = utils.create_evaluation_model(self.evaluation_model)
         eval_model = self.context.wrap_model(eval_model)
 
-        self.fixed_z = None
+        self.fixed_z = utils.sample_noise(
+            self.num_log_images,
+            self.latent_dimension
+        )
+
         self.instability_metrices = [Instability() for _ in self.image_sizes]
         self.inception_score_metric = InceptionScore(
             eval_model,
@@ -310,14 +316,9 @@ class MsgPairGANTrail(PyTorchTrial):
     def log_fixed_images(self, batch_idx):
         self.generator.eval()
 
-        if self.fixed_z is None:
-            self.fixed_z = utils.sample_noise(
-                self.num_log_images,
-                self.latent_dimension
-            )
-            self.fixed_z = self.context.to_device(self.fixed_z)
+        fixed_z = self.context.to_device(self.fixed_z)
+        fixed_images, _ = self.generator(fixed_z)
 
-        fixed_images, _ = self.generator(self.fixed_z)
         for images in fixed_images:
             size = str(images.shape[-1])
             images = utils.shift_image_range(images)
@@ -372,8 +373,8 @@ class MsgPairGANTrail(PyTorchTrial):
             z1 = self.context.to_device(z1)
             generated_fixed_images, _ = self.generator(z1)
 
-            for generated_fixed_img, instability_metric in zip(generated_fixed_images, self.instability_metrices):
-                instability_metric.add_batch(generated_fixed_img)
+            for generated_fixed_images, instability_metric in zip(generated_fixed_images, self.instability_metrices):
+                instability_metric.add_batch(generated_fixed_images)
 
         instabilities = []
 

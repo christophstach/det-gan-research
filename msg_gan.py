@@ -30,6 +30,7 @@ class MsgGANTrail(PyTorchTrial):
         self.latent_dimension = self.context.get_hparam('latent_dimension')
 
         self.msg = self.context.get_hparam('msg')
+        self.pack = self.context.get_hparam('pack')
         self.loss_fn = self.context.get_hparam('loss_fn')
         self.ema = self.context.get_hparam('ema')
         self.ema_decay = self.context.get_hparam('ema_decay')
@@ -97,7 +98,8 @@ class MsgGANTrail(PyTorchTrial):
             normalization=self.d_normalization,
             spectral_normalization=self.d_spectral_normalization,
             msg=self.msg,
-            unary=False
+            unary=False,
+            pack=self.pack
         )
 
         generator_model = ExponentialMovingAverage(generator_model, self.ema_decay) if self.ema else generator_model
@@ -160,7 +162,11 @@ class MsgGANTrail(PyTorchTrial):
         eval_model, resize_to, num_classes = utils.create_evaluation_model(self.evaluation_model)
         eval_model = self.context.wrap_model(eval_model)
 
-        self.fixed_z = None
+        self.fixed_z = utils.sample_noise(
+            self.num_log_images,
+            self.latent_dimension
+        )
+
         self.instability_metrices = [Instability() for _ in self.image_sizes]
         self.inception_score_metric = InceptionScore(
             eval_model,
@@ -300,14 +306,9 @@ class MsgGANTrail(PyTorchTrial):
     def log_fixed_images(self, batch_idx):
         self.generator.eval()
 
-        if self.fixed_z is None:
-            self.fixed_z = utils.sample_noise(
-                self.num_log_images,
-                self.latent_dimension
-            )
-            self.fixed_z = self.context.to_device(self.fixed_z)
+        fixed_z = self.context.to_device(self.fixed_z)
+        fixed_images, _ = self.generator(fixed_z)
 
-        fixed_images, _ = self.generator(self.fixed_z)
         for images in fixed_images:
             size = str(images.shape[-1])
             images = utils.shift_image_range(images)

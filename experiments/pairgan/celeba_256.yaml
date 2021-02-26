@@ -1,4 +1,4 @@
-description: "PairGAN: CelebA HQ - 128x128"
+description: "PairGAN: CelebA HQ - 256x256"
 entrypoint: msg_pair_gan:MsgPairGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -33,7 +33,7 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 128
+  image_size: 256
   image_channels: 3
   latent_dimension: 256
 
