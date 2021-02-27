@@ -1,4 +1,4 @@
-description: "ICW1: Celeba HQ - TTUR - 32x32"
+description: "ICW1: CelebA HQ - TTUR - 32x32"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist

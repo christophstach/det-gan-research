@@ -1,4 +1,4 @@
-description: "ICW1: CelebA HQ - 32x32"
+description: "CelebA HQ - Msg - TTUR - 128x128"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -33,11 +33,12 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 32
+  image_size: 128
   image_channels: 3
   latent_dimension: 128
 
-  msg: false
+  msg: true
+  pack: 1
   loss_fn: WGAN
   ema: false
   ema_decay: 0.999
@@ -57,15 +58,15 @@ hyperparameters:
   g_b2: 0.999
 
   d_optimizer: Adam
-  d_lr: 0.0001
+  d_lr: 0.0004
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 4
+  g_depth: 2
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 4
+  d_depth: 5
   d_min_filters: 0
   d_max_filters: 0
 
@@ -75,7 +76,7 @@ hyperparameters:
 
   d_activation_fn: lrelu
   d_normalization: passthrough
-  d_spectral_normalization: false
+  d_spectral_normalization: true
 
   inception_score_images: 2048
   evaluation_model: "vggface2"
