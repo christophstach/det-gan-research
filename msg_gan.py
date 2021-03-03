@@ -176,7 +176,6 @@ class MsgGANTrail(PyTorchTrial):
         )
 
     def optimize_discriminator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
-        self.discriminator.train()
         self.discriminator.requires_grad_(True)
         self.generator.requires_grad_(False)
 
@@ -185,12 +184,12 @@ class MsgGANTrail(PyTorchTrial):
         real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
 
-        real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator([image.detach() for image in fake_images])
+        real_scores = self.discriminator(real_images)
+        fake_scores = self.discriminator([image.detach() for image in fake_images])
 
+        d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
         gp = self.gradient_penalty(w, real_images, fake_images)
         d_ortho = self.d_orthogonal_regularizer(w, real_images, fake_images)
-        d_loss = self.loss.discriminator_loss(real_validity, fake_validity)
 
         total = d_loss
         total = total + gp if gp is not None else total
@@ -205,12 +204,9 @@ class MsgGANTrail(PyTorchTrial):
 
         self.context.step_optimizer(self.opt_d)
 
-        self.discriminator.eval()
-
         return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
     def optimize_generator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
-        self.generator.train()
         self.discriminator.requires_grad_(False)
         self.generator.requires_grad_(True)
 
@@ -219,12 +215,12 @@ class MsgGANTrail(PyTorchTrial):
         real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
 
-        real_validity = self.discriminator(real_images)
-        fake_validity = self.discriminator(fake_images)
+        real_scores = self.discriminator(real_images)
+        fake_scores = self.discriminator(fake_images)
 
+        g_loss = self.loss.generator_loss(real_scores, fake_scores)
         plr = self.path_length_regularizer(w, real_images, fake_images)
         g_ortho = self.g_orthogonal_regularizer(w, real_images, fake_images)
-        g_loss = self.loss.generator_loss(real_validity, fake_validity)
 
         total = g_loss
         total = total + plr if plr is not None else total
@@ -236,12 +232,11 @@ class MsgGANTrail(PyTorchTrial):
             clip_grad_norm_(self.generator.parameters(), self.clip_grad_norm)
 
         g_grad_norm = utils.grad_norm(self.generator.parameters())
+
         self.context.step_optimizer(self.opt_g)
 
         if self.ema:
             self.generator.update()
-
-        self.generator.eval()
 
         return g_loss, plr, g_ortho, g_grad_norm, in_sigma
 

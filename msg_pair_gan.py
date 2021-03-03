@@ -236,23 +236,23 @@ class MsgPairGANTrail(PyTorchTrial):
         fake_images2, w2 = self.generator(z2)
         fake_images3, w3 = self.generator(z3)
 
-        validity_real1 = self.discriminator(real_images1)
-        validity_real2 = self.discriminator(real_images2)
-        validity_real3 = self.discriminator(real_images3)
+        real1_scores = self.discriminator(real_images1)
+        real2_scores = self.discriminator(real_images2)
+        real3_scores = self.discriminator(real_images3)
 
-        validity_fake1 = self.discriminator([image.detach() for image in fake_images1])
-        validity_fake2 = self.discriminator([image.detach() for image in fake_images2])
-        validity_fake3 = self.discriminator([image.detach() for image in fake_images3])
+        fake1_scores = self.discriminator([image.detach() for image in fake_images1])
+        fake2_scores = self.discriminator([image.detach() for image in fake_images2])
+        fake3_scores = self.discriminator([image.detach() for image in fake_images3])
 
         # train with same
-        same_real_out = self.binary_discriminator(validity_real1 + torch.mean(validity_real2))
-        same_fake_out = self.binary_discriminator(torch.mean(validity_fake1) + validity_fake2)
+        same_real_out = self.binary_discriminator(real1_scores + torch.mean(real2_scores))
+        same_fake_out = self.binary_discriminator(torch.mean(fake1_scores) + fake2_scores)
 
         loss_same_real = self.loss(same_real_out, self.same_labels)
         loss_same_fake = self.loss(same_fake_out, self.same_labels)
 
         # train with different
-        different_out = self.binary_discriminator(validity_real3 + torch.mean(validity_fake3))
+        different_out = self.binary_discriminator(real3_scores + torch.mean(fake3_scores))
         loss_different = self.loss(different_out, self.different_labels)
 
         # update discriminator
@@ -283,22 +283,20 @@ class MsgPairGANTrail(PyTorchTrial):
         fake_images2, w2 = self.generator(z2)
         fake_images3, w3 = self.generator(z3)
 
-        # validity_real1 = self.discriminator(real_images1)
-        # validity_real2 = self.discriminator(real_images2)
-        validity_real3 = self.discriminator(real_images3)
+        real3_scores = self.discriminator(real_images3)
 
-        validity_fake1 = self.discriminator(fake_images1)
-        validity_fake2 = self.discriminator(fake_images2)
-        validity_fake3 = self.discriminator(fake_images3)
+        fake1_scores = self.discriminator(fake_images1)
+        fake2_scores = self.discriminator(fake_images2)
+        fake3_scores = self.discriminator(fake_images3)
 
         # train with same fake
-        same_fake_out = self.binary_discriminator(torch.mean(validity_fake1) + validity_fake2)
+        same_fake_out = self.binary_discriminator(torch.mean(fake1_scores) + fake2_scores)
 
         loss_same_fake_different = self.loss(same_fake_out, self.same_labels)
         loss_same_fake_same = self.loss(same_fake_out, self.different_labels)
 
         # train with different
-        different_out = self.binary_discriminator(validity_real3 + torch.mean(validity_fake3))
+        different_out = self.binary_discriminator(real3_scores + torch.mean(fake3_scores))
 
         loss_different = self.loss(different_out, self.same_labels)
 

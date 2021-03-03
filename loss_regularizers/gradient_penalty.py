@@ -47,13 +47,13 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
                 in zip(real_images, fake_images)
             ]
 
-            interpolates_validity = self.discriminator(interpolations)
+            interpolations_scores = self.discriminator(interpolations)
 
-            ones = torch.ones_like(interpolates_validity)
+            ones = torch.ones_like(interpolations_scores)
             ones = self.context.to_device(ones)
 
             inputs_gradients = torch.autograd.grad(
-                outputs=interpolates_validity,
+                outputs=interpolations_scores,
                 inputs=interpolations,
                 grad_outputs=ones,
                 create_graph=True
