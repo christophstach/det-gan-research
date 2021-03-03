@@ -1,6 +1,20 @@
-import torch
+from models import MsgDiscriminator
 
-x = torch.rand((32, 3, 32, 32))
-x = torch.reshape(x, (-1, x.shape[1] * 2, x.shape[2], x.shape[3]))
 
-print(x.shape)
+
+disc = MsgDiscriminator(
+    msg=True,
+    pack=1,
+    image_size=64,
+    unary=False,
+    max_filters=0,
+    min_filters=0,
+    activation_fn='lrelu',
+    normalization='batch',
+    image_channels=3,
+    spectral_normalization=False,
+    depth=4,
+)
+
+
+print(disc)

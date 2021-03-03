@@ -65,7 +65,7 @@ class MsgDiscriminator(torch.nn.Module):
                         discriminator_filters[i + 1],
                         normalization,
                         activation_fn,
-                        pack=pack
+                        pack=self.pack
                     )
                 )
 
