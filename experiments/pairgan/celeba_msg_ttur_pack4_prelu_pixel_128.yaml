@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - PairGAN - TTUR - Pack4 - PReLU - PixelNorm - 256x256"
+description: "CelebA HQ - MSG - PairGAN - TTUR - Pack4 - PReLU - PixelNorm - 128x128"
 entrypoint: msg_pair_gan:MsgPairGANTrail
 
 # records_per_epoch: 60000 # for mnist
