@@ -1,5 +1,5 @@
-description: "CelebA HQ - MSG - PairGAN - TTUR - Pack4 - PReLU - PixelNorm - 256x256"
-entrypoint: msg_pair_gan:MsgPairGANTrail
+description: "CelebA HQ - MSG - RaHinge - 0GP - Pack2 - PReLU - PixelNorm - 256x256"
+entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
 # records_per_epoch: 30000 # for celebAHQ
@@ -29,28 +29,24 @@ checkpoint_storage:
   save_experiment_best: 1
 
 hyperparameters:
-  global_batch_size: 36
+  global_batch_size: 32
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 256
+  image_size: 128
   image_channels: 3
   latent_dimension: 256
 
-  # Annealing
-  alpha_init: 1.0
-  wait_steps: 500
-  anneal_steps: 500
-
   msg: true
-  pack: 4
+  pack: 2
+  loss_fn: RaHinge
   ema: false
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
 
   gradient_penalty_coefficient: 10.0
-  gradient_penalty_center: 1.0
+  gradient_penalty_center: 0.0
 
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
@@ -62,7 +58,7 @@ hyperparameters:
   g_b2: 0.999
 
   d_optimizer: Adam
-  d_lr: 0.0004
+  d_lr: 0.0001
   d_b1: 0.5
   d_b2: 0.999
 
