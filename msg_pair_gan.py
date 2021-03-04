@@ -164,8 +164,8 @@ class MsgPairGANTrail(PyTorchTrial):
         batch_size = real_images.shape[0]
         divided_batch_size = batch_size // 3
 
-        self.same_labels = torch.full((divided_batch_size,), 1.0)
-        self.different_labels = torch.full((divided_batch_size,), 0.0)
+        self.same_labels = torch.full((divided_batch_size // self.pack,), 1.0)
+        self.different_labels = torch.full((divided_batch_size // self.pack,), 0.0)
 
         self.same_labels = self.context.to_device(self.same_labels)
         self.different_labels = self.context.to_device(self.different_labels)

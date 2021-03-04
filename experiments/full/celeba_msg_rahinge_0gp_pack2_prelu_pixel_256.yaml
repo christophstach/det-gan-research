@@ -1,4 +1,4 @@
-description: "CelebA HQ - Msg - 128x128 - TTUR - Pack4"
+description: "CelebA HQ - MSG - RaHinge - 0GP - Pack2 - PReLU - PixelNorm - 256x256"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -35,18 +35,18 @@ hyperparameters:
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dimension: 128
+  latent_dimension: 256
 
   msg: true
-  pack: 4
-  loss_fn: WGAN
+  pack: 2
+  loss_fn: RaHinge
   ema: false
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
 
   gradient_penalty_coefficient: 10.0
-  gradient_penalty_center: 1.0
+  gradient_penalty_center: 0.0
 
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
@@ -58,23 +58,23 @@ hyperparameters:
   g_b2: 0.999
 
   d_optimizer: Adam
-  d_lr: 0.0004
+  d_lr: 0.0001
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 2
+  g_depth: 4
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 5
+  d_depth: 6
   d_min_filters: 0
   d_max_filters: 0
 
-  g_activation_fn: lrelu
-  g_normalization: batch
+  g_activation_fn: prelu
+  g_normalization: pixel
   g_spectral_normalization: false
 
-  d_activation_fn: lrelu
+  d_activation_fn: prelu
   d_normalization: passthrough
   d_spectral_normalization: true
 
