@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - PairGAN - TTUR - Pack2 - PReLU - PixelNorm - 128x128"
+description: "CelebA HQ - MSG - PairGAN - TTUR - Pack2 - PReLU - PixelNorm - 256x256"
 entrypoint: msg_pair_gan:MsgPairGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -29,13 +29,13 @@ checkpoint_storage:
   save_experiment_best: 1
 
 hyperparameters:
-  global_batch_size: 30
+  global_batch_size: 36
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 128
+  image_size: 256
   image_channels: 3
-  latent_dimension: 128
+  latent_dimension: 256
 
   # Annealing
   alpha_init: 1.0
