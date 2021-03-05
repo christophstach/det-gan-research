@@ -89,13 +89,13 @@ class DiscriminatorIntermediateBlock(nn.Module):
 
 
 class DiscriminatorLastBlock(nn.Module):
-    def __init__(self, in_channels, norm, activation_fn, unary=False, useMiniBatchStdDev=True, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, unary=False, use_mini_batch_std_dev=True, bias=False):
         super().__init__()
 
         self.unary = unary
-        self.useMiniBatchStdDev = useMiniBatchStdDev
+        self.useMiniBatchStdDev = use_mini_batch_std_dev
 
-        if self.miniBatchStdDev:
+        if self.useMiniBatchStdDev:
             self.miniBatchStdDev = l.MinibatchStdDev()
 
         self.conv1 = nn.Conv2d(
