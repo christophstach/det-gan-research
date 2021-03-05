@@ -39,6 +39,8 @@ class MsgGANTrail(PyTorchTrial):
 
         self.gradient_penalty_coefficient = self.context.get_hparam('gradient_penalty_coefficient')
         self.gradient_penalty_center = self.context.get_hparam('gradient_penalty_center')
+        self.gradient_penalty_norm_type = self.context.get_hparam('gradient_penalty_norm_type')
+        self.gradient_penalty_penalty_type = self.context.get_hparam('gradient_penalty_penalty_type')
 
         self.path_length_regularizer_coefficient = self.context.get_hparam('path_length_regularizer_coefficient')
         self.d_orthogonal_regularizer_coefficient = self.context.get_hparam('d_orthogonal_regularizer_coefficient')
@@ -132,6 +134,8 @@ class MsgGANTrail(PyTorchTrial):
             self.discriminator,
             coefficient=self.gradient_penalty_coefficient,
             center=self.gradient_penalty_center,
+            norm_type=self.gradient_penalty_norm_type,
+            penalty_type=self.gradient_penalty_penalty_type,
         )
 
         self.path_length_regularizer = PathLengthRegularizer(
@@ -175,17 +179,19 @@ class MsgGANTrail(PyTorchTrial):
             self.context.get_per_slot_batch_size()
         )
 
-    def optimize_discriminator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
-        self.discriminator.requires_grad_(True)
-        self.generator.requires_grad_(False)
+    def optimize_discriminator(self, real_images: List[Tensor], batch_size: int, batch_idx: int):
+        self.discriminator.zero_grad()
 
-        fake_images, w = self.generator(z)
+        z = utils.sample_noise(batch_size, self.latent_dimension)
+        z = self.context.to_device(z)
+        with torch.no_grad():
+            fake_images, w = self.generator(z)
 
         real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
 
         real_scores = self.discriminator(real_images)
-        fake_scores = self.discriminator([image.detach() for image in fake_images])
+        fake_scores = self.discriminator(fake_images)
 
         d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
         gp = self.gradient_penalty(w, real_images, fake_images)
@@ -206,10 +212,11 @@ class MsgGANTrail(PyTorchTrial):
 
         return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
-    def optimize_generator(self, z: Tensor, real_images: List[Tensor], batch_idx: int):
-        self.discriminator.requires_grad_(False)
-        self.generator.requires_grad_(True)
+    def optimize_generator(self, real_images: List[Tensor], batch_size: int, batch_idx: int):
+        self.generator.zero_grad()
 
+        z = utils.sample_noise(batch_size, self.latent_dimension)
+        z = self.context.to_device(z)
         fake_images, w = self.generator(z)
 
         real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
@@ -249,11 +256,8 @@ class MsgGANTrail(PyTorchTrial):
         else:
             real_images = [real_images]
 
-        z = utils.sample_noise(batch_size, self.latent_dimension)
-        z = self.context.to_device(z)
-
-        d_loss, gp, d_ortho, d_grad_norm, in_sigma = self.optimize_discriminator(z, real_images, batch_idx)
-        g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(z, real_images, batch_idx)
+        d_loss, gp, d_ortho, d_grad_norm, in_sigma = self.optimize_discriminator(real_images, batch_size, batch_idx)
+        g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(real_images, batch_size, batch_idx)
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx)

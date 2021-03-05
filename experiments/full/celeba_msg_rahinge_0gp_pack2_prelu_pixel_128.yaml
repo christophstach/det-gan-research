@@ -45,8 +45,11 @@ hyperparameters:
   instance_noise_until: 0
   clip_grad_norm: 0
 
-  gradient_penalty_coefficient: 10.0
-  gradient_penalty_center: 0.0
+  # ON THE REGULARIZATION OF WASSERSTEIN GANS
+  gradient_penalty_coefficient: 0.1
+  gradient_penalty_center: 1.0
+  gradient_penalty_norm_type: l2
+  gradient_penalty_penalty_type: hinge
 
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
