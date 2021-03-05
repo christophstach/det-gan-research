@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - RaHinge - 0GP - Pack2 - PReLU - PixelNorm - 128x128"
+description: "CelebA HQ - MSG - RaHinge - LP - Pack2 - PReLU - PixelNorm - 128x128"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
