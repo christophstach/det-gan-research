@@ -240,7 +240,7 @@ class MsgGANTrail(PyTorchTrial):
 
         return g_loss, plr, g_ortho, g_grad_norm, in_sigma
 
-    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, torch.Tensor]:
+    def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Dict[str, Tensor]:
         real_images, _ = batch
         batch_size = real_images.shape[0]
 

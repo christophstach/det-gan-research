@@ -3,6 +3,7 @@ from typing import List
 
 import torch
 from determined.pytorch import PyTorchTrialContext
+from torch import Tensor
 
 import loss_regularizers.base
 
@@ -25,7 +26,7 @@ class PathLengthRegularizer(loss_regularizers.base.LossRegularizer):
         self.steps = 0
         self.first_step = first_step
 
-    def __call__(self, w: torch.Tensor, real_images: List[torch.Tensor], fake_images: List[torch.Tensor]):
+    def __call__(self, w: Tensor, real_images: List[Tensor], fake_images: List[Tensor]):
         if self.coefficient > 0.0 and self.steps >= self.first_step and self.steps % self.lazy_regularization_interval == 0:
             fake_images = fake_images[-1]
             w.requires_grad_(True)

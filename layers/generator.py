@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import utils
 
 
-class MsgGeneratorFirstBlock(nn.Module):
+class GeneratorFirstBlock(nn.Module):
     def __init__(self, in_channels, norm, activation_fn, bias=False):
         super().__init__()
 
@@ -39,7 +39,7 @@ class MsgGeneratorFirstBlock(nn.Module):
         return x
 
 
-class MsgGeneratorIntermediateBlock(nn.Module):
+class GeneratorIntermediateBlock(nn.Module):
     def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 
@@ -84,7 +84,7 @@ class MsgGeneratorIntermediateBlock(nn.Module):
         return x
 
 
-class MsgGeneratorLastBlock(nn.Module):
+class GeneratorLastBlock(nn.Module):
     def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
         super().__init__()
 

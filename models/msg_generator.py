@@ -1,8 +1,9 @@
+import math
 from typing import List, Tuple
 
-import math
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn.utils import spectral_norm
 
 import layers as l
@@ -57,7 +58,7 @@ class MsgGenerator(nn.Module):
         for i, _ in enumerate(generator_filters):
             if i == 0:
                 self.blocks.append(
-                    l.MsgGeneratorFirstBlock(
+                    l.GeneratorFirstBlock(
                         generator_filters[i],
                         normalization,
                         activation_fn
@@ -65,7 +66,7 @@ class MsgGenerator(nn.Module):
                 )
             elif i < len(generator_filters) - 1:
                 self.blocks.append(
-                    l.MsgGeneratorIntermediateBlock(
+                    l.GeneratorIntermediateBlock(
                         generator_filters[i - 1],
                         generator_filters[i],
                         normalization,
@@ -74,7 +75,7 @@ class MsgGenerator(nn.Module):
                 )
             else:
                 self.blocks.append(
-                    l.MsgGeneratorLastBlock(
+                    l.GeneratorLastBlock(
                         generator_filters[i - 1],
                         generator_filters[i],
                         normalization,
@@ -107,7 +108,7 @@ class MsgGenerator(nn.Module):
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, z: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
+    def forward(self, z: Tensor) -> Tuple[List[Tensor], Tensor]:
         outputs = []
 
         z = z.view(z.shape[0], -1, 1, 1)

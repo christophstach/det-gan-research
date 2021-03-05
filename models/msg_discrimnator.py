@@ -7,6 +7,8 @@ import layers as l
 
 from typing import List
 
+from torch import Tensor
+
 
 class MsgDiscriminator(torch.nn.Module):
     def __init__(self,
@@ -60,7 +62,7 @@ class MsgDiscriminator(torch.nn.Module):
 
             if i == 0:
                 self.blocks.append(
-                    l.MsgDiscriminatorFirstBlock(
+                    l.DiscriminatorFirstBlock(
                         image_channels,
                         discriminator_filters[i + 1],
                         normalization,
@@ -79,7 +81,7 @@ class MsgDiscriminator(torch.nn.Module):
                     )
             elif i < len(discriminator_filters) - 1:
                 self.blocks.append(
-                    l.MsgDiscriminatorIntermediateBlock(
+                    l.DiscriminatorIntermediateBlock(
                         discriminator_filters[i] + additional_filters,
                         discriminator_filters[i + 1],
                         normalization,
@@ -97,7 +99,7 @@ class MsgDiscriminator(torch.nn.Module):
                     )
             else:
                 self.blocks.append(
-                    l.MsgDiscriminatorLastBlock(
+                    l.DiscriminatorLastBlock(
                         discriminator_filters[i] + additional_filters,
                         normalization,
                         activation_fn,
@@ -110,7 +112,7 @@ class MsgDiscriminator(torch.nn.Module):
                 block.conv1 = spectral_norm(block.conv1)
                 block.conv2 = spectral_norm(block.conv2)
 
-    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: List[Tensor]) -> Tensor:
         if self.msg:
             x = list(reversed(x))
             x_forward = self.blocks[0](x[0])

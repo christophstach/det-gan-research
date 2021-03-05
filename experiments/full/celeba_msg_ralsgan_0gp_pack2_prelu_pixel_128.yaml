@@ -35,7 +35,7 @@ hyperparameters:
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dimension: 256
+  latent_dimension: 16
 
   msg: true
   pack: 2

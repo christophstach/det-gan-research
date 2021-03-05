@@ -6,6 +6,8 @@ from typing import List
 import torch
 import torch.nn as nn
 
+from torch import Tensor
+
 
 # https://www.zijianhu.com/post/pytorch/ema/
 class ExponentialMovingAverage(nn.Module):
@@ -46,7 +48,7 @@ class ExponentialMovingAverage(nn.Module):
             # buffers are copied
             shadow_buffers[name].copy_(buffer)
 
-    def forward(self, z: List[torch.Tensor]) -> List[torch.Tensor]:
+    def forward(self, z: List[Tensor]) -> List[Tensor]:
         if self.training:
             return self.model(z)
         else:

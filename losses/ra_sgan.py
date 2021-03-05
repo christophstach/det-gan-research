@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 
 import losses.base
 
@@ -8,7 +9,7 @@ class RaSGAN(losses.base.Loss):
     def __init__(self) -> None:
         super().__init__()
 
-    def discriminator_loss(self, real_scores: torch.Tensor, fake_scores: torch.Tensor) -> torch.Tensor:
+    def discriminator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
         relativistic_real_scores = real_scores - fake_scores.mean()
         relativistic_fake_scores = fake_scores - real_scores.mean()
 
@@ -22,7 +23,7 @@ class RaSGAN(losses.base.Loss):
 
         return loss.unsqueeze(0)
 
-    def generator_loss(self, real_scores: torch.Tensor, fake_scores: torch.Tensor) -> torch.Tensor:
+    def generator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
         relativistic_real_scores = real_scores - fake_scores.mean()
         relativistic_fake_scores = fake_scores - real_scores.mean()
 
