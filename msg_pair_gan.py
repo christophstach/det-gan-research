@@ -37,13 +37,6 @@ class MsgPairGANTrail(PyTorchTrial):
         self.instance_noise_until = self.context.get_hparam('instance_noise_until')
         self.clip_grad_norm = self.context.get_hparam('clip_grad_norm')
 
-        self.gradient_penalty_coefficient = self.context.get_hparam('gradient_penalty_coefficient')
-        self.gradient_penalty_center = self.context.get_hparam('gradient_penalty_center')
-
-        self.path_length_regularizer_coefficient = self.context.get_hparam('path_length_regularizer_coefficient')
-        self.d_orthogonal_regularizer_coefficient = self.context.get_hparam('d_orthogonal_regularizer_coefficient')
-        self.g_orthogonal_regularizer_coefficient = self.context.get_hparam('g_orthogonal_regularizer_coefficient')
-
         self.g_optimizer = self.context.get_hparam('g_optimizer')
         self.g_lr = self.context.get_hparam('g_lr')
         self.g_b1 = self.context.get_hparam('g_b1')
@@ -225,9 +218,8 @@ class MsgPairGANTrail(PyTorchTrial):
         }
 
     def optimize_discriminator(self, zs: List[Tensor], real_images: List[List[Tensor]]):
-        self.discriminator.requires_grad_(True)
-        self.binary_discriminator.requires_grad_(True)
-        self.generator.requires_grad_(False)
+        self.discriminator.zero_grad()
+        self.binary_discriminator.zero_grad()
 
         z1, z2, z3 = zs
         real_images1, real_images2, real_images3 = real_images
@@ -264,6 +256,8 @@ class MsgPairGANTrail(PyTorchTrial):
         return d_loss, loss_same_real, loss_same_fake, loss_different
 
     def optimize_generator(self, zs: List[Tensor], real_images: List[List[Tensor]], batch_idx: int):
+        self.generator.zero_grad()
+
         # annealing
         if batch_idx < self.wait_steps:
             alpha = self.alpha_init
@@ -271,10 +265,6 @@ class MsgPairGANTrail(PyTorchTrial):
             alpha = self.alpha_init * (1. - (batch_idx - self.wait_steps) / self.anneal_steps)
         else:
             alpha = 0.0
-
-        self.discriminator.requires_grad_(False)
-        self.binary_discriminator.requires_grad_(False)
-        self.generator.requires_grad_(True)
 
         z1, z2, z3 = zs
         real_images1, real_images2, real_images3 = real_images

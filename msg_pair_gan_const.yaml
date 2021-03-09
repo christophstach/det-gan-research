@@ -87,8 +87,8 @@ hyperparameters:
 
 environment:
   image:
-    cpu: "deepprojects/determined-pytorch-1.7-tf-2.4-cpu"
-    gpu: "deepprojects/determined-cuda-110-pytorch-1.7-tf-2.4-gpu"
+    cpu: "deepprojects/determined-pytorch-1.8-tf-2.4-cpu"
+    gpu: "deepprojects/determined-cuda-111-pytorch-1.8-tf-2.4-gpu"
 
 bind_mounts:
   - host_path: /data/ldap/stachc/datasets

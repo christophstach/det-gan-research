@@ -1,4 +1,4 @@
-description: MSG GAN Const
+description: "CelebA HQ - MSG - EMA - RaLSGAN - 0GP - Pack2 - Mish - PixelNorm - 128x128"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -35,36 +35,38 @@ hyperparameters:
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dimension: 128
+  latent_dimension: 16
 
-  msg: false
-  pack: 1
-  loss_fn: WGAN
-  ema: false
+  msg: true
+  pack: 2
+  loss_fn: RaLSGAN
+  ema: true
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
 
+  # IMPROVING GENERALIZATION AND STABILITY OF
+  # GENERATIVE ADVERSARIAL NETWORKS
   gradient_penalty_coefficient: 10.0
-  gradient_penalty_center: 1.0
+  gradient_penalty_center: 0.0
+  gradient_penalty_norm_type: l2
+  gradient_penalty_penalty_type: ls
 
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
   d_orthogonal_regularizer_coefficient: 0.0
 
   g_optimizer: Adam
-  # g_lr: 0.0001 # Good value from OAdam paper
-  g_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  g_lr: 0.0001
   g_b1: 0.5
   g_b2: 0.999
-  
+
   d_optimizer: Adam
-  # d_lr: 0.0001 # Good value from OAdam paper
-  d_lr: 0.0003 # Value from RaHinge paper as far as I remember
+  d_lr: 0.0001
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 2
+  g_depth: 5
   g_min_filters: 0
   g_max_filters: 0
 
@@ -72,11 +74,11 @@ hyperparameters:
   d_min_filters: 0
   d_max_filters: 0
 
-  g_activation_fn: lrelu
-  g_normalization: batch
+  g_activation_fn: mish
+  g_normalization: pixel
   g_spectral_normalization: false
 
-  d_activation_fn: lrelu
+  d_activation_fn: mish
   d_normalization: passthrough
   d_spectral_normalization: true
 
@@ -85,8 +87,8 @@ hyperparameters:
 
 environment:
   image:
-    cpu: "deepprojects/determined-pytorch-1.8-tf-2.4-cpu"
-    gpu: "deepprojects/determined-cuda-111-pytorch-1.8-tf-2.4-gpu"
+    cpu: "deepprojects/determined-pytorch-1.7-tf-2.4-cpu"
+    gpu: "deepprojects/determined-cuda-110-pytorch-1.7-tf-2.4-gpu"
 
 bind_mounts:
   - host_path: /data/ldap/stachc/datasets

@@ -1,5 +1,5 @@
-description: "CelebA HQ - MSG - PairGAN - TTUR - Pack2 - PReLU - PixelNorm - 128x128"
-entrypoint: msg_pair_gan:MsgPairGANTrail
+description: "CelebA HQ - MSG - EMA - RaLSGAN - 0GP - Pack4 - Mish - PixelNorm - 128x128"
+entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
 # records_per_epoch: 30000 # for celebAHQ
@@ -29,28 +29,28 @@ checkpoint_storage:
   save_experiment_best: 1
 
 hyperparameters:
-  global_batch_size: 36
+  global_batch_size: 32
 
   # dataset: anime-face
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dimension: 256
-
-  # Annealing
-  alpha_init: 1.0
-  wait_steps: 500
-  anneal_steps: 500
+  latent_dimension: 16
 
   msg: true
-  pack: 2
-  ema: false
+  pack: 4
+  loss_fn: RaLSGAN
+  ema: true
   ema_decay: 0.999
   instance_noise_until: 0
   clip_grad_norm: 0
 
+  # IMPROVING GENERALIZATION AND STABILITY OF
+  # GENERATIVE ADVERSARIAL NETWORKS
   gradient_penalty_coefficient: 10.0
-  gradient_penalty_center: 1.0
+  gradient_penalty_center: 0.0
+  gradient_penalty_norm_type: l2
+  gradient_penalty_penalty_type: ls
 
   path_length_regularizer_coefficient: 0.0
   g_orthogonal_regularizer_coefficient: 0.0
@@ -62,23 +62,23 @@ hyperparameters:
   g_b2: 0.999
 
   d_optimizer: Adam
-  d_lr: 0.0004
+  d_lr: 0.0001
   d_b1: 0.5
   d_b2: 0.999
 
-  g_depth: 4
+  g_depth: 5
   g_min_filters: 0
   g_max_filters: 0
 
-  d_depth: 6
+  d_depth: 5
   d_min_filters: 0
   d_max_filters: 0
 
-  g_activation_fn: prelu
+  g_activation_fn: mish
   g_normalization: pixel
   g_spectral_normalization: false
 
-  d_activation_fn: prelu
+  d_activation_fn: mish
   d_normalization: passthrough
   d_spectral_normalization: true
 
