@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 # import activation functions
-import nn.mish.functional as Func
+import activations.mish.functional as F
 
 
 class Mish(nn.Module):
@@ -37,4 +37,4 @@ class Mish(nn.Module):
         """
         Forward pass of the function.
         """
-        return Func.mish(x)
+        return F.mish(x)

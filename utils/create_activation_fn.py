@@ -1,7 +1,9 @@
 from torch.nn import LeakyReLU, ReLU, ReLU6, PReLU, SELU, ELU, SiLU, GELU
-from nn.mish.mish import Mish
+from activations.mish.mish import Mish
+from activations.terelu.terelu import TEReLU
 from echoAI.Activation.Torch.eswish import Eswish
 from echoAI.Activation.Torch.swish import Swish
+from echoAI.Activation.Torch.sqnl import SQNL
 
 
 def create_activation_fn(activation_fn: str, num_features: int):
@@ -16,7 +18,8 @@ def create_activation_fn(activation_fn: str, num_features: int):
         "gelu": lambda: GELU(),
         "mish": lambda: Mish(),
         "swish": lambda: Swish(),
-        "eswish": lambda: Eswish()
+        "eswish": lambda: Eswish(),
+        "terelu": lambda: TEReLU()
     }
 
     return activation_fn_dict[activation_fn]()

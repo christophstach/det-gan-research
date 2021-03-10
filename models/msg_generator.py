@@ -24,8 +24,8 @@ class MsgGenerator(nn.Module):
 
         super().__init__()
 
-        # self.w_network = nn.Sequential(
-        #    nn.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
+        # self.w_network = activations.Sequential(
+        #    activations.Conv2d(latent_dimension, latent_dimension, kernel_size=1)
         # )
 
         self.msg = msg
