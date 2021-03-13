@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - EMA - RaLSGAN - 0GP - Pack2 - PReLU - PixelNorm - 128x128"
+description: "CelebA HQ - MSG - EMA - RaLSGAN - 0GP - Pack1 - PReLU - PixelNorm - 128x128"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -38,7 +38,7 @@ hyperparameters:
   latent_dimension: 16
 
   msg: true
-  pack: 2
+  pack: 1
   loss_fn: RaLSGAN
   ema: true
   ema_decay: 0.999

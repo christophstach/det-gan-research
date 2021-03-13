@@ -61,8 +61,8 @@ class GradientPenalty(loss_regularizers.base.LossRegularizer):
             )
 
             inputs_gradients = [
-                input_gradients.view(input_gradients.shape[0], -1)
-                for input_gradients in inputs_gradients
+                gradients.view(gradients.shape[0], -1)
+                for gradients in inputs_gradients
             ]
             gradients = torch.cat(inputs_gradients, dim=1)
 

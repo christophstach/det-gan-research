@@ -1,3 +1,4 @@
 from .gradient_penalty import GradientPenalty
 from .orthogonal_regularizer import OrthogonalRegularizer
 from .path_length_regularizer import PathLengthRegularizer
+from .wgan_div_gradient_penalty import WGANDivGradientPenalty

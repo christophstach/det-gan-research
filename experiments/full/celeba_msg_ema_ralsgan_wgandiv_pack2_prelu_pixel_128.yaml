@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - EMA - RaLSGAN - 0GP - Pack2 - PReLU - PixelNorm - 128x128"
+description: "CelebA HQ - MSG - EMA - RaLSGAN - WGAN div - Pack2 - PReLU - PixelNorm - 128x128"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -47,8 +47,10 @@ hyperparameters:
 
   # IMPROVING GENERALIZATION AND STABILITY OF
   # GENERATIVE ADVERSARIAL NETWORKS
-  gradient_penalty_coefficient: 10.0
+  gradient_penalty_type: WGAN-div
+  gradient_penalty_coefficient: 2.0
   gradient_penalty_center: 0.0
+  gradient_penalty_power: 6
   gradient_penalty_norm_type: l2
   gradient_penalty_penalty_type: ls
 

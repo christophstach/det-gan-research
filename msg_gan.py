@@ -11,7 +11,7 @@ from torchvision.utils import make_grid
 
 import datasets as ds
 import utils
-from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer
+from loss_regularizers import GradientPenalty, PathLengthRegularizer, OrthogonalRegularizer, WGANDivGradientPenalty
 from metrics import Instability, InceptionScore
 from models import MsgDiscriminator, MsgGenerator, ExponentialMovingAverage
 from utils.types import TorchData
@@ -37,8 +37,10 @@ class MsgGANTrail(PyTorchTrial):
         self.instance_noise_until = self.context.get_hparam('instance_noise_until')
         self.clip_grad_norm = self.context.get_hparam('clip_grad_norm')
 
+        self.gradient_penalty_type = self.context.get_hparam('gradient_penalty_type')
         self.gradient_penalty_coefficient = self.context.get_hparam('gradient_penalty_coefficient')
         self.gradient_penalty_center = self.context.get_hparam('gradient_penalty_center')
+        self.gradient_penalty_power = self.context.get_hparam('gradient_penalty_power')
         self.gradient_penalty_norm_type = self.context.get_hparam('gradient_penalty_norm_type')
         self.gradient_penalty_penalty_type = self.context.get_hparam('gradient_penalty_penalty_type')
 
@@ -129,14 +131,28 @@ class MsgGANTrail(PyTorchTrial):
 
         self.loss = utils.create_loss_fn(self.loss_fn)
 
-        self.gradient_penalty = GradientPenalty(
-            self.context,
-            self.discriminator,
-            coefficient=self.gradient_penalty_coefficient,
-            center=self.gradient_penalty_center,
-            norm_type=self.gradient_penalty_norm_type,
-            penalty_type=self.gradient_penalty_penalty_type,
-        )
+        if self.gradient_penalty_type == 'WGAN-div':
+            self.gradient_penalty = WGANDivGradientPenalty(
+                self.context,
+                self.discriminator,
+                coefficient=self.gradient_penalty_coefficient,
+                center=self.gradient_penalty_center,
+                power=self.gradient_penalty_power,
+                norm_type=self.gradient_penalty_norm_type,
+                penalty_type=self.gradient_penalty_penalty_type,
+            )
+        elif self.gradient_penalty_type == 'universal':
+            self.gradient_penalty = GradientPenalty(
+                self.context,
+                self.discriminator,
+                coefficient=self.gradient_penalty_coefficient,
+                center=self.gradient_penalty_center,
+                power=self.gradient_penalty_power,
+                norm_type=self.gradient_penalty_norm_type,
+                penalty_type=self.gradient_penalty_penalty_type,
+            )
+        else:
+            raise NotImplementedError()
 
         self.path_length_regularizer = PathLengthRegularizer(
             self.context,
@@ -184,8 +200,13 @@ class MsgGANTrail(PyTorchTrial):
 
         z = utils.sample_noise(batch_size, self.latent_dimension)
         z = self.context.to_device(z)
-        with torch.no_grad():
+
+        if self.gradient_penalty_type == 'WGAN-div':
             fake_images, w = self.generator(z)
+        else:
+
+            with torch.no_grad():
+                fake_images, w = self.generator(z)
 
         real_images, in_sigma = utils.instance_noise(real_images, batch_idx, self.instance_noise_until)
         fake_images, in_sigma = utils.instance_noise(fake_images, batch_idx, self.instance_noise_until)
@@ -194,8 +215,14 @@ class MsgGANTrail(PyTorchTrial):
         fake_scores = self.discriminator(fake_images)
 
         d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
-        gp = self.gradient_penalty(w, real_images, fake_images)
         d_ortho = self.d_orthogonal_regularizer(w, real_images, fake_images)
+
+        if self.gradient_penalty_type == 'WGAN-div':
+            gp = self.gradient_penalty(real_images, fake_images, real_scores, fake_scores)
+        elif self.gradient_penalty_type == 'universal':
+            gp = self.gradient_penalty(w, real_images, fake_images)
+        else:
+            raise NotImplementedError()
 
         total = d_loss
         total = total + gp if gp is not None else total
@@ -255,6 +282,10 @@ class MsgGANTrail(PyTorchTrial):
             real_images = utils.to_scaled_images(real_images, self.image_size)
         else:
             real_images = [real_images]
+
+        if self.gradient_penalty_type == 'WGAN-div':
+            for real_image in real_images:
+                real_image.requires_grad_(True)
 
         d_loss, gp, d_ortho, d_grad_norm, in_sigma = self.optimize_discriminator(real_images, batch_size, batch_idx)
         g_loss, plr, g_ortho, g_grad_norm, in_sigma = self.optimize_generator(real_images, batch_size, batch_idx)

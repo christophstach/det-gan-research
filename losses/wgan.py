@@ -3,6 +3,7 @@ import torch
 import losses.base.loss
 from torch import Tensor
 
+
 class WGAN(losses.base.Loss):
     def __init__(self) -> None:
         super().__init__()
