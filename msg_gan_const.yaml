@@ -33,7 +33,7 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 128
+  image_size: 64
   image_channels: 3
   latent_dimension: 256
 

@@ -43,9 +43,9 @@ class GeneratorFirstBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, in_channels)
 
-    def forward(self, x, z=None):
+    def forward(self, x, skip=None):
         x = self.norm1(self.act_fn1(self.conv1(x)))
-        x = x + self.skipper(z) if self.z_skip else x
+        x = x + self.skipper(skip) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
@@ -90,7 +90,7 @@ class GeneratorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-    def forward(self, x, z=None):
+    def forward(self, x, skip=None):
         x = F.interpolate(
             x,
             size=(
@@ -102,7 +102,7 @@ class GeneratorIntermediateBlock(nn.Module):
         )
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
-        x = x + self.skipper(z) if self.z_skip else x
+        x = x + self.skipper(skip) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
@@ -147,7 +147,7 @@ class GeneratorLastBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-    def forward(self, x, z=None):
+    def forward(self, x, skip=None):
         x = F.interpolate(
             x,
             size=(
@@ -159,7 +159,7 @@ class GeneratorLastBlock(nn.Module):
         )
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
-        x = x + self.skipper(z) if self.z_skip else x
+        x = x + self.skipper(skip) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x

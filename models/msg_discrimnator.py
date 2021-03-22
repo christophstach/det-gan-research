@@ -1,13 +1,11 @@
 import math
+from typing import List
 
 import torch
+from torch import Tensor
 from torch.nn.utils import spectral_norm
 
 import layers as l
-
-from typing import List
-
-from torch import Tensor
 
 
 class MsgDiscriminator(torch.nn.Module):
@@ -30,9 +28,6 @@ class MsgDiscriminator(torch.nn.Module):
         self.pack = pack
         self.blocks = torch.nn.ModuleList()
 
-        if self.msg:
-            self.from_rgb_combiners = torch.nn.ModuleList()
-
         discriminator_filters = [
             2 ** (x + 1) * depth
             for x in range(1, int(math.log2(image_size)))
@@ -53,13 +48,6 @@ class MsgDiscriminator(torch.nn.Module):
             ]
 
         for i, _ in enumerate(discriminator_filters):
-            simple_from_rgb_combiner = False
-
-            if self.msg:
-                additional_filters = 3 if simple_from_rgb_combiner else discriminator_filters[i]
-            else:
-                additional_filters = 0
-
             if i == 0:
                 self.blocks.append(
                     l.DiscriminatorFirstBlock(
@@ -70,39 +58,27 @@ class MsgDiscriminator(torch.nn.Module):
                         pack=self.pack
                     )
                 )
-
-                if self.msg:
-                    self.from_rgb_combiners.append(
-                        l.LinCatFromRgbCombiner(
-                            image_channels=image_channels,
-                            channels=discriminator_filters[i + 1],
-                            pack=self.pack
-                        )
-                    )
             elif i < len(discriminator_filters) - 1:
                 self.blocks.append(
                     l.DiscriminatorIntermediateBlock(
-                        discriminator_filters[i] + additional_filters,
+                        discriminator_filters[i],
                         discriminator_filters[i + 1],
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        image_channels,
+                        msg_skip=self.msg,
+                        pack=self.pack
                     )
                 )
-
-                if self.msg:
-                    self.from_rgb_combiners.append(
-                        l.LinCatFromRgbCombiner(
-                            image_channels=image_channels,
-                            channels=discriminator_filters[i + 1],
-                            pack=self.pack
-                        )
-                    )
             else:
                 self.blocks.append(
                     l.DiscriminatorLastBlock(
-                        discriminator_filters[i] + additional_filters,
+                        discriminator_filters[i],
                         normalization,
                         activation_fn,
+                        image_channels,
+                        msg_skip=self.msg,
+                        pack=self.pack,
                         unary=unary
                     )
                 )
@@ -117,9 +93,8 @@ class MsgDiscriminator(torch.nn.Module):
             x = list(reversed(x))
             x_forward = self.blocks[0](x[0])
 
-            for data, block, from_rgb in zip(x[1:], self.blocks[1:], self.from_rgb_combiners):
-                x_forward = from_rgb(data, x_forward)
-                x_forward = block(x_forward)
+            for skip, block in zip(x[1:], self.blocks[1:]):
+                x_forward = block(x_forward, skip)
         else:
             x_forward = x[0]
 
