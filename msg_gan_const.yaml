@@ -1,4 +1,4 @@
-description: "CelebA HQ - MSG - ZSkip - EMA - RaLSGAN - WGAN div - Pack2 - g:leakyReLU/d:leakyReLU - g:PixelNorm/d:SpectralNorm - 64x64"
+description: "CelebA HQ - MSG - ZSkip - EMA - RaLSGAN - WGAN div - Pack2 - g:leakyReLU/d:leakyReLU - g:PixelNorm/d:SpectralNorm - 32x32"
 entrypoint: msg_gan:MsgGANTrail
 
 # records_per_epoch: 60000 # for mnist
@@ -33,9 +33,9 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 64
+  image_size: 32
   image_channels: 3
-  latent_dimension: 256
+  latent_dimension: 16
 
   msg: true
   pack: 2

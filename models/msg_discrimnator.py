@@ -55,6 +55,8 @@ class MsgDiscriminator(torch.nn.Module):
                         discriminator_filters[i + 1],
                         normalization,
                         activation_fn,
+                        image_channels,
+                        msg_skip=self.msg,
                         pack=self.pack
                     )
                 )
@@ -91,9 +93,9 @@ class MsgDiscriminator(torch.nn.Module):
     def forward(self, x: List[Tensor]) -> Tensor:
         if self.msg:
             x = list(reversed(x))
-            x_forward = self.blocks[0](x[0])
+            x_forward = x[0]
 
-            for skip, block in zip(x[1:], self.blocks[1:]):
+            for skip, block in zip(x, self.blocks):
                 x_forward = block(x_forward, skip)
         else:
             x_forward = x[0]
