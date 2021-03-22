@@ -1,6 +1,6 @@
-determined==0.14.3
-determined-cli==0.14.3
-determined-deploy==0.14.3
+determined==0.14.5
+determined-cli==0.14.5
+determined-deploy==0.14.5
 torch==1.8.0
 torchvision==0.9.0
 jupyterlab==3.0.4

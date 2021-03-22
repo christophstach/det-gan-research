@@ -120,8 +120,8 @@ class MsgGenerator(nn.Module):
         x = w
 
         if self.msg:
-            for block, to_rgb, skip in zip(self.blocks, self.to_rgb_converters, self.skippers):
-                x = block(x, skip(z))
+            for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
+                x = block(x, z)
 
                 output = torch.tanh(to_rgb(x))
                 outputs.append(output)
