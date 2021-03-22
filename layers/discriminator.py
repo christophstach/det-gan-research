@@ -6,7 +6,7 @@ import utils
 
 
 class DiscriminatorFirstBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, pack=1, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, pack=1, bias=True):
         super().__init__()
 
         self.pack = pack
@@ -14,18 +14,18 @@ class DiscriminatorFirstBlock(nn.Module):
         self.conv1 = nn.Conv2d(
             in_channels * self.pack,
             in_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             in_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
@@ -50,24 +50,24 @@ class DiscriminatorFirstBlock(nn.Module):
 
 
 class DiscriminatorIntermediateBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=True):
         super().__init__()
 
         self.conv1 = nn.Conv2d(
             in_channels,
             in_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             in_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
@@ -89,7 +89,7 @@ class DiscriminatorIntermediateBlock(nn.Module):
 
 
 class DiscriminatorLastBlock(nn.Module):
-    def __init__(self, in_channels, norm, activation_fn, unary=False, use_mini_batch_std_dev=True, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, unary=False, use_mini_batch_std_dev=True, bias=True):
         super().__init__()
 
         self.unary = unary
@@ -101,27 +101,27 @@ class DiscriminatorLastBlock(nn.Module):
         self.conv1 = nn.Conv2d(
             in_channels + 1,
             in_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             in_channels,
             in_channels,
-            kernel_size=4,
-            stride=1,
-            padding=0,
+            kernel_size=(4, 4),
+            stride=(1, 1),
+            padding=(0, 0),
             bias=bias
         )
 
         self.scorer = nn.Conv2d(
             in_channels,
             2 if self.unary else 1,
-            kernel_size=1,
-            stride=1,
-            padding=0,
+            kernel_size=(1, 1),
+            stride=(1, 1),
+            padding=(0, 0),
             bias=bias
         )
 
@@ -157,7 +157,7 @@ class SimpleFromRgbCombiner(nn.Module):
 
 
 class LinCatFromRgbCombiner(nn.Module):
-    def __init__(self, image_channels: int, channels: int, pack: int, bias=False):
+    def __init__(self, image_channels: int, channels: int, pack: int, bias=True):
         super().__init__()
 
         self.pack = pack
@@ -165,9 +165,9 @@ class LinCatFromRgbCombiner(nn.Module):
         self.conv = nn.Conv2d(
             in_channels=image_channels * self.pack,
             out_channels=channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
+            kernel_size=(1, 1),
+            stride=(1, 1),
+            padding=(0, 0),
             bias=bias
         )
 
@@ -181,7 +181,7 @@ class LinCatFromRgbCombiner(nn.Module):
 
 
 class CatLinFromRgbCombiner(nn.Module):
-    def __init__(self, image_channels: int, channels: int, pack: int, bias=False):
+    def __init__(self, image_channels: int, channels: int, pack: int, bias=True):
         super().__init__()
 
         self.pack = pack
@@ -189,9 +189,9 @@ class CatLinFromRgbCombiner(nn.Module):
         self.conv = nn.Conv2d(
             in_channels=channels + image_channels * self.pack,
             out_channels=channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
+            kernel_size=(1, 1),
+            stride=(1, 1),
+            padding=(0, 0),
             bias=bias
         )
 

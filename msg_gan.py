@@ -204,7 +204,6 @@ class MsgGANTrail(PyTorchTrial):
         if self.gradient_penalty_type == 'WGAN-div':
             fake_images, w = self.generator(z)
         else:
-
             with torch.no_grad():
                 fake_images, w = self.generator(z)
 

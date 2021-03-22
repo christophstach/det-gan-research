@@ -61,7 +61,8 @@ class MsgGenerator(nn.Module):
                     l.GeneratorFirstBlock(
                         generator_filters[i],
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        latent_dimension
                     )
                 )
             elif i < len(generator_filters) - 1:
@@ -70,7 +71,8 @@ class MsgGenerator(nn.Module):
                         generator_filters[i - 1],
                         generator_filters[i],
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        latent_dimension
                     )
                 )
             else:
@@ -79,7 +81,8 @@ class MsgGenerator(nn.Module):
                         generator_filters[i - 1],
                         generator_filters[i],
                         normalization,
-                        activation_fn
+                        activation_fn,
+                        latent_dimension
                     )
                 )
 
@@ -87,9 +90,9 @@ class MsgGenerator(nn.Module):
                     self.to_rgb = nn.Conv2d(
                         in_channels=generator_filters[i],
                         out_channels=image_channels,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0
+                        kernel_size=(1, 1),
+                        stride=(1, 1),
+                        padding=(0, 0)
                     )
 
             if self.msg:
@@ -97,9 +100,9 @@ class MsgGenerator(nn.Module):
                     nn.Conv2d(
                         in_channels=generator_filters[i],
                         out_channels=image_channels,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0
+                        kernel_size=(1, 1),
+                        stride=(1, 1),
+                        padding=(0, 0)
                     )
                 )
 
@@ -117,8 +120,9 @@ class MsgGenerator(nn.Module):
         x = w
 
         if self.msg:
-            for block, to_rgb in zip(self.blocks, self.to_rgb_converters):
-                x = block(x)
+            for block, to_rgb, skip in zip(self.blocks, self.to_rgb_converters, self.skippers):
+                x = block(x, skip(z))
+
                 output = torch.tanh(to_rgb(x))
                 outputs.append(output)
         else:

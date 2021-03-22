@@ -5,24 +5,35 @@ import utils
 
 
 class GeneratorFirstBlock(nn.Module):
-    def __init__(self, in_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=True):
         super().__init__()
+
+        self.z_skip = z_skip
+
+        if z_skip:
+            self.skipper = nn.Conv2d(
+                in_channels=latent_dimension,
+                out_channels=in_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0)
+            )
 
         self.conv1 = nn.ConvTranspose2d(
             in_channels,
             in_channels,
-            kernel_size=4,
-            stride=1,
-            padding=0,
+            kernel_size=(4, 4),
+            stride=(1, 1),
+            padding=(0, 0),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             in_channels,
             in_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
@@ -32,32 +43,44 @@ class GeneratorFirstBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, in_channels)
 
-    def forward(self, x):
+    def forward(self, x, z=None):
         x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = x + self.skipper(z) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
 
 
 class GeneratorIntermediateBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=True):
         super().__init__()
+
+        self.z_skip = z_skip
+
+        if z_skip:
+            self.skipper = nn.Conv2d(
+                in_channels=latent_dimension,
+                out_channels=out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0)
+            )
 
         self.conv1 = nn.Conv2d(
             in_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             out_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
@@ -67,7 +90,7 @@ class GeneratorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-    def forward(self, x):
+    def forward(self, x, z=None):
         x = F.interpolate(
             x,
             size=(
@@ -79,30 +102,42 @@ class GeneratorIntermediateBlock(nn.Module):
         )
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = x + self.skip(z) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x
 
 
 class GeneratorLastBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, bias=False):
+    def __init__(self, in_channels, out_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=False):
         super().__init__()
+
+        self.z_skip = z_skip
+
+        if z_skip:
+            self.skipper = nn.Conv2d(
+                in_channels=latent_dimension,
+                out_channels=out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0)
+            )
 
         self.conv1 = nn.Conv2d(
             in_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
         self.conv2 = nn.Conv2d(
             out_channels,
             out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
             bias=bias
         )
 
@@ -112,7 +147,7 @@ class GeneratorLastBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-    def forward(self, x):
+    def forward(self, x, z=None):
         x = F.interpolate(
             x,
             size=(
@@ -124,6 +159,7 @@ class GeneratorLastBlock(nn.Module):
         )
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = x + self.skipper(z) if self.z_skip else x
         x = self.norm2(self.act_fn2(self.conv2(x)))
 
         return x

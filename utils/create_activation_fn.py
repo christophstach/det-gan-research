@@ -1,9 +1,9 @@
-from torch.nn import LeakyReLU, ReLU, ReLU6, PReLU, SELU, ELU, SiLU, GELU
-from activations.mish.mish import Mish
-from activations.terelu.terelu import TEReLU
 from echoAI.Activation.Torch.eswish import Eswish
 from echoAI.Activation.Torch.swish import Swish
-from echoAI.Activation.Torch.sqnl import SQNL
+from torch.nn import LeakyReLU, ReLU, ReLU6, PReLU, SELU, ELU, SiLU, GELU
+
+from activations.mish.mish import Mish
+from activations.terelu.terelu import TEReLU
 
 
 def create_activation_fn(activation_fn: str, num_features: int):

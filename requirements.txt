@@ -1,6 +1,6 @@
-determined==0.14.2
-determined-cli==0.14.2
-determined-deploy==0.14.2
+determined==0.14.3
+determined-cli==0.14.3
+determined-deploy==0.14.3
 torch==1.8.0
 torchvision==0.9.0
 jupyterlab==3.0.4
@@ -12,3 +12,4 @@ opencv-python==4.5.1.48
 seaborn==0.11.1
 facenet-pytorch==2.5.1
 echoAI==0.1.3
+pytorch-lightning==1.2.3
