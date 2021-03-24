@@ -37,12 +37,23 @@ class DiscriminatorFirstBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
+        # elf.down = nn.Sequential(
+        #    nn.PixelUnshuffle(2),
+        #    nn.Conv2d(
+        #        kernel_size=(1, 1),
+        #        in_channels=out_channels * 4,
+        #        out_channels=out_channels,
+        #        padding=(0, 0)
+        #    ),
+        # )
         self.down = nn.AvgPool2d(2, 2)
 
     def forward(self, x, skip=None):
         if self.pack > 1:
+            if self.msg_skip:
+                skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
+
             x = torch.reshape(x, (-1, x.shape[1] * self.pack, x.shape[2], x.shape[3]))
-            skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = torch.cat([x, skip], dim=1) if self.msg_skip else x
@@ -62,7 +73,7 @@ class DiscriminatorIntermediateBlock(nn.Module):
         self.pack = pack
 
         self.conv1 = nn.Conv2d(
-            in_channels,
+            in_channels + image_channels * self.pack,
             in_channels,
             kernel_size=(3, 3),
             stride=(1, 1),
@@ -85,11 +96,23 @@ class DiscriminatorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
+        # elf.down = nn.Sequential(
+        #    nn.PixelUnshuffle(2),
+        #    nn.Conv2d(
+        #        kernel_size=(1, 1),
+        #        in_channels=out_channels * 4,
+        #        out_channels=out_channels,
+        #        padding=(0, 0)
+        #    ),
+        # )
         self.down = nn.AvgPool2d(2, 2)
 
     def forward(self, x, skip=None):
-        if self.pack > 1 and self.msg_skip:
-            skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
+        if self.pack > 1:
+            if self.msg_skip:
+                skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
+
+            x = torch.cat([x, skip], dim=1)
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = torch.cat([x, skip], dim=1) if self.msg_skip else x
@@ -114,7 +137,7 @@ class DiscriminatorLastBlock(nn.Module):
             self.miniBatchStdDev = l.MinibatchStdDev()
 
         self.conv1 = nn.Conv2d(
-            in_channels + 1,
+            in_channels + image_channels * self.pack + 1,
             in_channels,
             kernel_size=(3, 3),
             stride=(1, 1),
@@ -147,8 +170,11 @@ class DiscriminatorLastBlock(nn.Module):
         self.norm2 = utils.create_norm(norm, in_channels)
 
     def forward(self, x, skip=None):
-        if self.pack > 1 and self.msg_skip:
-            skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
+        if self.pack > 1:
+            if self.msg_skip:
+                skip = torch.reshape(skip, (-1, skip.shape[1] * self.pack, skip.shape[2], skip.shape[3]))
+
+            x = torch.cat([x, skip], dim=1)
 
         if self.useMiniBatchStdDev:
             x = self.miniBatchStdDev(x)

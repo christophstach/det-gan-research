@@ -90,6 +90,16 @@ class GeneratorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
+        # self.up = nn.Sequential(
+        #    nn.Conv2d(
+        #        kernel_size=(1, 1),
+        #        in_channels=in_channels,
+        #        out_channels=in_channels * 4,
+        #        padding=(0, 0)
+        #    ),
+        #    nn.PixelShuffle(2),
+        # )
+
     def forward(self, x, skip=None):
         x = F.interpolate(
             x,
@@ -100,6 +110,8 @@ class GeneratorIntermediateBlock(nn.Module):
             mode="bilinear",
             align_corners=False
         )
+
+        # x = self.up(x)
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
@@ -147,6 +159,16 @@ class GeneratorLastBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
+        # self.up = nn.Sequential(
+        #    nn.Conv2d(
+        #        kernel_size=(1, 1),
+        #        in_channels=in_channels,
+        #        out_channels=in_channels * 4,
+        #        padding=(0, 0)
+        #    ),
+        #    nn.PixelShuffle(2),
+        # )
+
     def forward(self, x, skip=None):
         x = F.interpolate(
             x,
@@ -157,6 +179,8 @@ class GeneratorLastBlock(nn.Module):
             mode="bilinear",
             align_corners=False
         )
+
+        # x = self.up(x)
 
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
