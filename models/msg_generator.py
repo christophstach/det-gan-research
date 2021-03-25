@@ -62,7 +62,8 @@ class MsgGenerator(nn.Module):
                         generator_filters[i],
                         normalization,
                         activation_fn,
-                        latent_dimension
+                        latent_dimension,
+                        spectral_normalization
                     )
                 )
             elif i < len(generator_filters) - 1:
@@ -72,7 +73,8 @@ class MsgGenerator(nn.Module):
                         generator_filters[i],
                         normalization,
                         activation_fn,
-                        latent_dimension
+                        latent_dimension,
+                        spectral_normalization
                     )
                 )
             else:
@@ -82,7 +84,8 @@ class MsgGenerator(nn.Module):
                         generator_filters[i],
                         normalization,
                         activation_fn,
-                        latent_dimension
+                        latent_dimension,
+                        spectral_normalization
                     )
                 )
 
@@ -105,11 +108,6 @@ class MsgGenerator(nn.Module):
                         padding=(0, 0)
                     )
                 )
-
-        if spectral_normalization:
-            for block in self.blocks:
-                block.conv1 = spectral_norm(block.conv1)
-                block.conv2 = spectral_norm(block.conv2)
 
     def forward(self, z: Tensor) -> Tuple[List[Tensor], Tensor]:
         outputs = []

@@ -1,11 +1,19 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.spectral_norm import spectral_norm as sn
 
 import utils
 
 
 class GeneratorFirstBlock(nn.Module):
-    def __init__(self, in_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=True):
+    def __init__(self,
+                 in_channels,
+                 norm,
+                 activation_fn,
+                 latent_dimension,
+                 spectral_norm,
+                 z_skip=True,
+                 bias=True):
         super().__init__()
 
         self.z_skip = z_skip
@@ -43,6 +51,10 @@ class GeneratorFirstBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, in_channels)
 
+        if spectral_norm:
+            self.conv1 = sn(self.conv1)
+            self.conv2 = sn(self.conv2)
+
     def forward(self, x, skip=None):
         x = self.norm1(self.act_fn1(self.conv1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
@@ -52,7 +64,15 @@ class GeneratorFirstBlock(nn.Module):
 
 
 class GeneratorIntermediateBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=True):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 norm,
+                 activation_fn,
+                 latent_dimension,
+                 spectral_norm,
+                 z_skip=True,
+                 bias=True):
         super().__init__()
 
         self.z_skip = z_skip
@@ -99,6 +119,10 @@ class GeneratorIntermediateBlock(nn.Module):
         #    ),
         #    nn.PixelShuffle(2),
         # )
+
+        if spectral_norm:
+            self.conv1 = sn(self.conv1)
+            self.conv2 = sn(self.conv2)
 
     def forward(self, x, skip=None):
         x = F.interpolate(
@@ -121,7 +145,15 @@ class GeneratorIntermediateBlock(nn.Module):
 
 
 class GeneratorLastBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, norm, activation_fn, latent_dimension, z_skip=True, bias=False):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 norm,
+                 activation_fn,
+                 latent_dimension,
+                 spectral_norm,
+                 z_skip=True,
+                 bias=False):
         super().__init__()
 
         self.z_skip = z_skip
@@ -168,6 +200,10 @@ class GeneratorLastBlock(nn.Module):
         #    ),
         #    nn.PixelShuffle(2),
         # )
+
+        if spectral_norm:
+            self.conv1 = sn(self.conv1)
+            self.conv2 = sn(self.conv2)
 
     def forward(self, x, skip=None):
         x = F.interpolate(

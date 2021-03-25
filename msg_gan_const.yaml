@@ -78,7 +78,7 @@ hyperparameters:
 
   g_activation_fn: lrelu
   g_normalization: pixel
-  g_spectral_normalization: false
+  g_spectral_normalization: true
 
   d_activation_fn: lrelu
   d_normalization: passthrough

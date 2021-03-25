@@ -7,8 +7,6 @@ distributions = {
 
 
 def sample_noise(batch_size: int, noise_size: int, normalize=False, truncations=None):
-    # Could add truncation trick here
-
     truncations_key = 'None' if truncations is None else truncations
 
     if truncations_key not in distributions.keys():

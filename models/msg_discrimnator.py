@@ -3,7 +3,6 @@ from typing import List
 
 import torch
 from torch import Tensor
-from torch.nn.utils import spectral_norm
 
 import layers as l
 
@@ -56,6 +55,7 @@ class MsgDiscriminator(torch.nn.Module):
                         normalization,
                         activation_fn,
                         image_channels,
+                        spectral_normalization,
                         msg_skip=self.msg,
                         pack=self.pack
                     )
@@ -68,6 +68,7 @@ class MsgDiscriminator(torch.nn.Module):
                         normalization,
                         activation_fn,
                         image_channels,
+                        spectral_normalization,
                         msg_skip=self.msg,
                         pack=self.pack
                     )
@@ -79,16 +80,12 @@ class MsgDiscriminator(torch.nn.Module):
                         normalization,
                         activation_fn,
                         image_channels,
+                        spectral_normalization,
                         msg_skip=self.msg,
                         pack=self.pack,
                         unary=unary
                     )
                 )
-
-        if spectral_normalization:
-            for block in self.blocks:
-                block.conv1 = spectral_norm(block.conv1)
-                block.conv2 = spectral_norm(block.conv2)
 
     def forward(self, x: List[Tensor]) -> Tensor:
         if self.msg:

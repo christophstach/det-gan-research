@@ -111,7 +111,7 @@ class MsgGANTrail(PyTorchTrial):
         self.discriminator = self.context.wrap_model(discriminator_model)
         self.generator = self.context.wrap_model(generator_model)
 
-        self.opt_d = self.context.wrap_optimizer(
+        self.d_opt = self.context.wrap_optimizer(
             utils.create_optimizer(
                 self.d_optimizer,
                 self.discriminator.parameters(),
@@ -120,7 +120,7 @@ class MsgGANTrail(PyTorchTrial):
             )
         )
 
-        self.opt_g = self.context.wrap_optimizer(
+        self.g_opt = self.context.wrap_optimizer(
             utils.create_optimizer(
                 self.g_optimizer,
                 self.generator.parameters(),
@@ -234,7 +234,7 @@ class MsgGANTrail(PyTorchTrial):
 
         d_grad_norm = utils.grad_norm(self.discriminator.parameters())
 
-        self.context.step_optimizer(self.opt_d)
+        self.context.step_optimizer(self.d_opt)
 
         return d_loss, gp, d_ortho, d_grad_norm, in_sigma
 
@@ -266,7 +266,7 @@ class MsgGANTrail(PyTorchTrial):
 
         g_grad_norm = utils.grad_norm(self.generator.parameters())
 
-        self.context.step_optimizer(self.opt_g)
+        self.context.step_optimizer(self.g_opt)
 
         if self.ema:
             self.generator.update()
