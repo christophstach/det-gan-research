@@ -1,7 +1,7 @@
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn.utils.spectral_norm import spectral_norm as sn
 
+import layers as l
 import utils
 
 
@@ -12,10 +12,12 @@ class GeneratorFirstBlock(nn.Module):
                  activation_fn,
                  latent_dimension,
                  spectral_norm,
+                 attention,
                  z_skip=True,
                  bias=True):
         super().__init__()
 
+        self.attention = attention
         self.z_skip = z_skip
 
         if z_skip:
@@ -27,16 +29,23 @@ class GeneratorFirstBlock(nn.Module):
                 padding=(0, 0)
             )
 
-        self.conv1 = nn.ConvTranspose2d(
-            in_channels,
-            in_channels,
-            kernel_size=(4, 4),
-            stride=(1, 1),
-            padding=(0, 0),
-            bias=bias
-        )
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels,
+                in_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.ConvTranspose2d(
+                in_channels,
+                in_channels,
+                kernel_size=(4, 4),
+                stride=(1, 1),
+                padding=(0, 0),
+                bias=bias
+            )
 
-        self.conv2 = nn.Conv2d(
+        self.compute2 = nn.Conv2d(
             in_channels,
             in_channels,
             kernel_size=(3, 3),
@@ -52,13 +61,13 @@ class GeneratorFirstBlock(nn.Module):
         self.norm2 = utils.create_norm(norm, in_channels)
 
         if spectral_norm:
-            self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
     def forward(self, x, skip=None):
-        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm1(self.act_fn1(self.compute1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         return x
 
@@ -71,10 +80,12 @@ class GeneratorIntermediateBlock(nn.Module):
                  activation_fn,
                  latent_dimension,
                  spectral_norm,
+                 attention,
                  z_skip=True,
                  bias=True):
         super().__init__()
 
+        self.attention = attention
         self.z_skip = z_skip
 
         if z_skip:
@@ -86,16 +97,23 @@ class GeneratorIntermediateBlock(nn.Module):
                 padding=(0, 0)
             )
 
-        self.conv1 = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1),
-            bias=bias
-        )
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels,
+                out_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                bias=bias
+            )
 
-        self.conv2 = nn.Conv2d(
+        self.compute2 = nn.Conv2d(
             out_channels,
             out_channels,
             kernel_size=(3, 3),
@@ -110,36 +128,22 @@ class GeneratorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-        # self.up = nn.Sequential(
-        #    nn.Conv2d(
-        #        kernel_size=(1, 1),
-        #        in_channels=in_channels,
-        #        out_channels=in_channels * 4,
-        #        padding=(0, 0)
-        #    ),
-        #    nn.PixelShuffle(2),
-        # )
-
-        if spectral_norm:
-            self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
-
-    def forward(self, x, skip=None):
-        x = F.interpolate(
-            x,
-            size=(
-                x.size(2) * 2,
-                x.size(3) * 2
-            ),
-            mode="bilinear",
+        self.up = nn.Upsample(
+            scale_factor=(2, 2),
+            mode='bilinear',
             align_corners=False
         )
 
-        # x = self.up(x)
+        if spectral_norm:
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
-        x = self.norm1(self.act_fn1(self.conv1(x)))
+    def forward(self, x, skip=None):
+        x = self.up(x)
+
+        x = self.norm1(self.act_fn1(self.compute1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         return x
 
@@ -152,10 +156,12 @@ class GeneratorLastBlock(nn.Module):
                  activation_fn,
                  latent_dimension,
                  spectral_norm,
+                 attention,
                  z_skip=True,
                  bias=False):
         super().__init__()
 
+        self.attention = attention
         self.z_skip = z_skip
 
         if z_skip:
@@ -167,16 +173,24 @@ class GeneratorLastBlock(nn.Module):
                 padding=(0, 0)
             )
 
-        self.conv1 = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1),
-            bias=bias
-        )
 
-        self.conv2 = nn.Conv2d(
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels,
+                out_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                bias=bias
+            )
+
+        self.compute2 = nn.Conv2d(
             out_channels,
             out_channels,
             kernel_size=(3, 3),
@@ -191,35 +205,21 @@ class GeneratorLastBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, out_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-        # self.up = nn.Sequential(
-        #    nn.Conv2d(
-        #        kernel_size=(1, 1),
-        #        in_channels=in_channels,
-        #        out_channels=in_channels * 4,
-        #        padding=(0, 0)
-        #    ),
-        #    nn.PixelShuffle(2),
-        # )
-
-        if spectral_norm:
-            self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
-
-    def forward(self, x, skip=None):
-        x = F.interpolate(
-            x,
-            size=(
-                x.size(2) * 2,
-                x.size(3) * 2
-            ),
-            mode="bilinear",
+        self.up = nn.Upsample(
+            scale_factor=(2, 2),
+            mode='bilinear',
             align_corners=False
         )
 
-        # x = self.up(x)
+        if spectral_norm:
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
-        x = self.norm1(self.act_fn1(self.conv1(x)))
+    def forward(self, x, skip=None):
+        x = self.up(x)
+
+        x = self.norm1(self.act_fn1(self.compute1(x)))
         x = x + self.skipper(skip) if self.z_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         return x

@@ -4,7 +4,6 @@ from typing import List, Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.nn.utils import spectral_norm
 
 import layers as l
 
@@ -56,6 +55,8 @@ class MsgGenerator(nn.Module):
         generator_filters[0] = latent_dimension
 
         for i, _ in enumerate(generator_filters):
+            attention = 7 > i >= 2 and i < len(generator_filters) - 1
+
             if i == 0:
                 self.blocks.append(
                     l.GeneratorFirstBlock(
@@ -63,7 +64,8 @@ class MsgGenerator(nn.Module):
                         normalization,
                         activation_fn,
                         latent_dimension,
-                        spectral_normalization
+                        spectral_normalization,
+                        attention
                     )
                 )
             elif i < len(generator_filters) - 1:
@@ -74,7 +76,8 @@ class MsgGenerator(nn.Module):
                         normalization,
                         activation_fn,
                         latent_dimension,
-                        spectral_normalization
+                        spectral_normalization,
+                        attention
                     )
                 )
             else:
@@ -85,7 +88,8 @@ class MsgGenerator(nn.Module):
                         normalization,
                         activation_fn,
                         latent_dimension,
-                        spectral_normalization
+                        spectral_normalization,
+                        attention
                     )
                 )
 
