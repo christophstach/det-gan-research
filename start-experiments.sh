@@ -11,4 +11,4 @@
 
 # det experiment create experiments/full/celeba_msg_ema_ralsgan_wgandiv_pack2_prelu_pixel_128.yaml .
 
-det experiment create ./msg_gan_const.yaml .
+det experiment create ./msg_gan_const.yaml . --test

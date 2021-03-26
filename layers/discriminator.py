@@ -14,24 +14,33 @@ class DiscriminatorFirstBlock(nn.Module):
                  activation_fn,
                  image_channels,
                  spectral_norm,
+                 attention,
                  msg_skip=True,
                  pack=1,
                  bias=True):
         super().__init__()
 
+        self.attention = attention
         self.msg_skip = msg_skip
         self.pack = pack
 
-        self.conv1 = nn.Conv2d(
-            in_channels * self.pack,
-            in_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1),
-            bias=bias
-        )
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels * self.pack,
+                in_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.Conv2d(
+                in_channels * self.pack,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                bias=bias
+            )
 
-        self.conv2 = nn.Conv2d(
+        self.compute2 = nn.Conv2d(
             in_channels + image_channels * self.pack,
             out_channels,
             kernel_size=(3, 3),
@@ -46,20 +55,11 @@ class DiscriminatorFirstBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-        # elf.down = nn.Sequential(
-        #    nn.PixelUnshuffle(2),
-        #    nn.Conv2d(
-        #        kernel_size=(1, 1),
-        #        in_channels=out_channels * 4,
-        #        out_channels=out_channels,
-        #        padding=(0, 0)
-        #    ),
-        # )
         self.down = nn.AvgPool2d(2, 2)
 
         if spectral_norm:
-            self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
     def forward(self, x, skip=None):
         if self.pack > 1:
@@ -68,9 +68,9 @@ class DiscriminatorFirstBlock(nn.Module):
 
             x = torch.reshape(x, (-1, x.shape[1] * self.pack, x.shape[2], x.shape[3]))
 
-        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm1(self.act_fn1(self.compute1(x)))
         x = torch.cat([x, skip], dim=1) if self.msg_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         x = self.down(x)
 
@@ -85,26 +85,33 @@ class DiscriminatorIntermediateBlock(nn.Module):
                  activation_fn,
                  image_channels,
                  spectral_norm,
+                 attention,
                  msg_skip=True,
                  pack=1,
                  bias=True):
         super().__init__()
 
+        self.attention = attention
         self.msg_skip = msg_skip
         self.pack = pack
 
-        # self.conv1 = nn.Conv2d(
-        #    in_channels + image_channels * self.pack,
-        #    in_channels,
-        #    kernel_size=(3, 3),
-        #    stride=(1, 1),
-        #    padding=(1, 1),
-        #    bias=bias
-        # )
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels + image_channels * self.pack,
+                in_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.Conv2d(
+                in_channels + image_channels * self.pack,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                bias=bias
+            )
 
-        self.attention = l.SelfAttention2d(in_channels + image_channels * self.pack, 8, spectral_norm)
-
-        self.conv2 = nn.Conv2d(
+        self.compute2 = nn.Conv2d(
             in_channels + image_channels * self.pack,
             out_channels,
             kernel_size=(3, 3),
@@ -119,20 +126,11 @@ class DiscriminatorIntermediateBlock(nn.Module):
         self.norm1 = utils.create_norm(norm, in_channels)
         self.norm2 = utils.create_norm(norm, out_channels)
 
-        # elf.down = nn.Sequential(
-        #    nn.PixelUnshuffle(2),
-        #    nn.Conv2d(
-        #        kernel_size=(1, 1),
-        #        in_channels=out_channels * 4,
-        #        out_channels=out_channels,
-        #        padding=(0, 0)
-        #    ),
-        # )
         self.down = nn.AvgPool2d(2, 2)
 
         if spectral_norm:
-            # self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
     def forward(self, x, skip=None):
         if self.pack > 1:
@@ -141,10 +139,9 @@ class DiscriminatorIntermediateBlock(nn.Module):
 
             x = torch.cat([x, skip], dim=1)
 
-        # x = self.norm1(self.act_fn1(self.conv1(x)))
-        x, _ = self.attention(x)
-        # x = torch.cat([x, skip], dim=1) if self.msg_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm1(self.act_fn1(self.compute1(x)))
+        x = torch.cat([x, skip], dim=1) if self.msg_skip else x
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         x = self.down(x)
 
@@ -158,6 +155,7 @@ class DiscriminatorLastBlock(nn.Module):
                  activation_fn,
                  image_channels,
                  spectral_norm,
+                 attention,
                  msg_skip=True,
                  pack=1,
                  unary=False,
@@ -165,6 +163,7 @@ class DiscriminatorLastBlock(nn.Module):
                  bias=True):
         super().__init__()
 
+        self.attention = attention
         self.msg_skip = msg_skip
         self.pack = pack
         self.unary = unary
@@ -173,16 +172,23 @@ class DiscriminatorLastBlock(nn.Module):
         if self.useMiniBatchStdDev:
             self.miniBatchStdDev = l.MinibatchStdDev()
 
-        self.conv1 = nn.Conv2d(
-            in_channels + image_channels * self.pack + 1,
-            in_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1),
-            bias=bias
-        )
+        if self.attention:
+            self.compute1 = l.SelfAttention2d(
+                in_channels + image_channels * self.pack + 1,
+                in_channels,
+                spectral_norm=spectral_norm
+            )
+        else:
+            self.compute1 = nn.Conv2d(
+                in_channels + image_channels * self.pack + 1,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                bias=bias
+            )
 
-        self.conv2 = nn.Conv2d(
+        self.compute2 = nn.Conv2d(
             in_channels + image_channels * self.pack,
             in_channels,
             kernel_size=(4, 4),
@@ -207,8 +213,8 @@ class DiscriminatorLastBlock(nn.Module):
         self.norm2 = utils.create_norm(norm, in_channels)
 
         if spectral_norm:
-            self.conv1 = sn(self.conv1)
-            self.conv2 = sn(self.conv2)
+            self.compute1 = sn(self.compute1) if not self.attention else self.compute1
+            self.compute2 = sn(self.compute2)
 
     def forward(self, x, skip=None):
         if self.pack > 1:
@@ -220,9 +226,9 @@ class DiscriminatorLastBlock(nn.Module):
         if self.useMiniBatchStdDev:
             x = self.miniBatchStdDev(x)
 
-        x = self.norm1(self.act_fn1(self.conv1(x)))
+        x = self.norm1(self.act_fn1(self.compute1(x)))
         x = torch.cat([x, skip], dim=1) if self.msg_skip else x
-        x = self.norm2(self.act_fn2(self.conv2(x)))
+        x = self.norm2(self.act_fn2(self.compute2(x)))
 
         x = self.scorer(x)
 

@@ -47,6 +47,8 @@ class MsgDiscriminator(torch.nn.Module):
             ]
 
         for i, _ in enumerate(discriminator_filters):
+            attention = len(
+                discriminator_filters) - i < 7 and i >= 2  # attention is very expensive on big images >= 256x256
             if i == 0:
                 self.blocks.append(
                     l.DiscriminatorFirstBlock(
@@ -56,6 +58,7 @@ class MsgDiscriminator(torch.nn.Module):
                         activation_fn,
                         image_channels,
                         spectral_normalization,
+                        attention,
                         msg_skip=self.msg,
                         pack=self.pack
                     )
@@ -69,6 +72,7 @@ class MsgDiscriminator(torch.nn.Module):
                         activation_fn,
                         image_channels,
                         spectral_normalization,
+                        attention,
                         msg_skip=self.msg,
                         pack=self.pack
                     )
@@ -81,6 +85,7 @@ class MsgDiscriminator(torch.nn.Module):
                         activation_fn,
                         image_channels,
                         spectral_normalization,
+                        attention,
                         msg_skip=self.msg,
                         pack=self.pack,
                         unary=unary
