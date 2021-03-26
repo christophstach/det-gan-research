@@ -11,7 +11,7 @@ class SelfAttention2d(nn.Module):
         self.out_channels = out_channels
         self.f_g_channels = in_channels // channel_divisor
 
-        # self.gamma = nn.Parameter(zeros(1))
+        self.gamma = nn.Parameter(zeros(1))
 
         self.f = nn.Conv2d(self.in_channels, self.f_g_channels, (1, 1), (1, 1), (0, 0))
         self.g = nn.Conv2d(self.in_channels, self.f_g_channels, (1, 1), (1, 1), (0, 0))
@@ -22,6 +22,7 @@ class SelfAttention2d(nn.Module):
             self.f = sn(self.f)
             self.g = sn(self.g)
             self.h = sn(self.h)
+            self.v = sn(self.v)
 
     def forward(self, x: Tensor):
         batch_size, channels, width, height = x.shape
@@ -35,6 +36,6 @@ class SelfAttention2d(nn.Module):
         o = bmm(h, attention)
         o = o.view(batch_size, channels, width, height)
 
-        v = self.v(o + x)
+        v = self.v(self.gamma * o + x)
 
         return v
