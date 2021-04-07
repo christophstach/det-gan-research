@@ -1,0 +1,58 @@
+description: "CelebA HQ - GAN - EMA - RaLSGAN - depth:g8/d8 - 16 => 64x64"
+entrypoint: gan:GANTrail
+
+# records_per_epoch: 30000 # for celebAHQ
+# records_per_epoch: 63632 # for anime-face
+
+searcher:
+  name: single
+  metric: val_classifier_score
+  smaller_is_better: false
+  max_length:
+    batches: 500000
+
+min_validation_period:
+  batches: 5000
+
+min_checkpoint_period:
+  batches: 10000
+
+resources:
+  slots_per_trial: 1
+  agent_label: dt-cluster
+
+checkpoint_storage:
+  save_trial_best: 1
+  save_trial_latest: 1
+  save_experiment_best: 1
+
+hyperparameters:
+  global_batch_size: 32
+
+  # dataset: anime-face
+  dataset: celeba-hq
+  image_size: 64
+  image_channels: 3
+  latent_dimension: 16
+
+  g_depth: 8
+  d_depth: 8
+
+  g_lr: 0.0002
+  g_b1: 0.5
+  g_b2: 0.999
+
+  d_lr: 0.0002
+  d_b1: 0.5
+  d_b2: 0.999
+
+
+environment:
+  image:
+    cpu: "deepprojects/determined-pytorch-1.8-tf-2.4-cpu:1.0.0"
+    gpu: "deepprojects/determined-cuda-111-pytorch-1.8-tf-2.4-gpu:1.0.0"
+
+bind_mounts:
+  - host_path: /data/ldap/stachc/datasets
+    container_path: /datasets
+    read_only: true

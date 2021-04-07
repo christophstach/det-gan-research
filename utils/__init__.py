@@ -1,6 +1,6 @@
 from .create_activation_fn import create_activation_fn
 from .create_dataset import create_dataset
-from .create_evaluation_model import create_evaluation_model
+from .create_evaluator import create_evaluator
 from .create_loss_fn import create_loss_fn
 from .create_norm import create_norm
 from .create_optimizer import create_optimizer

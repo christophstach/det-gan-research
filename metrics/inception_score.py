@@ -1,10 +1,53 @@
+from typing import List, Any
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from determined.pytorch import DataLoader
+from determined.pytorch import MetricReducer
 from scipy.stats import entropy
+from torch import nn
 
 from .base import Metric
+
+
+class ClassifierScoreReducer(MetricReducer):
+
+    def reset(self) -> None:
+        pass
+
+    def per_slot_reduce(self) -> Any:
+        pass
+
+    def cross_slot_reduce(self, per_slot_metrics: List) -> Any:
+        pass
+
+
+# https://github.com/torchgan/torchgan/blob/master/torchgan/metrics/classifierscore.py
+class ClassifierScore:
+    def __init__(self, classifier: nn.Module, resize_to: int) -> None:
+        super().__init__()
+
+        self.classifier = classifier
+        self.resize_to = resize_to
+
+    def resize(self, x):
+        return F.interpolate(
+            input=x,
+            size=(self.resize_to, self.resize_to),
+            mode='bilinear',
+            align_corners=False
+        )
+
+    def __call__(self, x):
+        x = self.resize(x) if x.shape[2] != self.resize_to or x.shape[3] != self.resize_to else x
+        x = self.classifier(x)
+
+        p = F.softmax(x, dim=1)
+        q = torch.mean(p, dim=0)
+
+        kl = torch.sum(p * (F.log_softmax(x, dim=1) - torch.log(q)), dim=1)
+        return torch.exp(torch.mean(kl)).data
 
 
 # https://github.com/sbarratt/inception-score-pytorch/blob/master/inception_score.py
@@ -47,7 +90,7 @@ class InceptionScore(Metric):
         num_images = len(self.images)
 
         assert self.batch_size > 0
-        assert num_images > self.batch_size
+        assert num_images >= self.batch_size
 
         dataloader = DataLoader(self.images, batch_size=self.batch_size)
 

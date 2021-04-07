@@ -11,7 +11,7 @@ from torch import Tensor
 
 # https://www.zijianhu.com/post/pytorch/ema/
 class ExponentialMovingAverage(nn.Module):
-    def __init__(self, model: nn.Module, decay: float):
+    def __init__(self, model: nn.Module, decay: float = 0.999):
         super().__init__()
         self.decay = decay
 

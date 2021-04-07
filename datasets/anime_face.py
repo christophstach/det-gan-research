@@ -3,7 +3,7 @@ from torchvision import transforms
 from .flat_image_folder import FlatImageFolder
 
 
-def anime_face(size=128, channels=3, root="/datasets"):
+def anime_face(size=128, channels=3, root="/datasets", validation=False):
     assert channels == 1 or channels == 3
 
     root += "/anime-face/cropped"

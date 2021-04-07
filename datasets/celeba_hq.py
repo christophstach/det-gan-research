@@ -3,7 +3,7 @@ from torchvision import transforms
 from .flat_image_folder import FlatImageFolder
 
 
-def celeba_hq(size=128, channels=3, root="/datasets"):
+def celeba_hq(size=128, channels=3, root="/datasets", validation=False):
     assert channels == 1 or channels == 3
 
     available_sizes = [128, 256, 512, 1024]

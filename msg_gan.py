@@ -179,7 +179,7 @@ class MsgGANTrail(PyTorchTrial):
         else:
             self.image_sizes = [self.image_size]
 
-        eval_model, resize_to, num_classes = utils.create_evaluation_model(self.evaluation_model)
+        eval_model, resize_to, num_classes = utils.create_evaluator(self.evaluation_model)
         eval_model = self.context.wrap_model(eval_model)
 
         self.fixed_z = utils.sample_noise(

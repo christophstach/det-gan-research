@@ -1,6 +1,6 @@
-determined==0.14.5
-determined-cli==0.14.5
-determined-deploy==0.14.5
+determined==0.14.6
+determined-cli==0.14.6
+determined-deploy==0.14.6
 torch==1.8.0
 torchvision==0.9.0
 jupyterlab==3.0.4
@@ -13,3 +13,4 @@ seaborn==0.11.1
 facenet-pytorch==2.5.1
 echoAI==0.1.3
 pytorch-lightning==1.2.3
+pytorch-fid==0.2.0
