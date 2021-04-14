@@ -11,9 +11,8 @@ from typing_extensions import TypedDict
 from loss_regularizers.msg_wgan_div_gradient_penalty import MsgWganDivGradientPenalty
 from losses import RaLSGAN
 from losses.base import Loss
-from models import ExponentialMovingAverage
-from pl.msg_discriminator import MsgDiscriminator
-from pl.msg_generator import MsgGenerator
+from models.style_discriminator import StyleDiscriminator
+from models.style_generator import StyleGenerator
 from utils import create_optimizer, to_scaled_images, shift_image_range
 
 
@@ -50,14 +49,14 @@ class LightningMsgGan(LightningModule):
         self.torch_writer = torch_writer
         self.num_log_images = 25
 
-        self.generator = MsgGenerator(
+        self.generator = StyleGenerator(
             self.cfg['g_depth'],
             self.cfg['image_size'],
             self.cfg['image_channels'],
             self.cfg['latent_dim']
         )
         # self.generator = ExponentialMovingAverage(self.generator)
-        self.discriminator = MsgDiscriminator(
+        self.discriminator = StyleDiscriminator(
             self.cfg['d_depth'],
             self.cfg['image_size'],
             self.cfg['image_channels'],

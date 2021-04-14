@@ -1,5 +1,5 @@
 from .exponential_moving_average import ExponentialMovingAverage
-from .msg_discrimnator import MsgDiscriminator
-from .msg_generator import MsgGenerator
+from .legacy_msg_discriminator import MsgDiscriminator
+from .legacy_msg_generator import MsgGenerator
 from .binary_discriminator import BinaryDiscriminator
 from .unary_discriminator import UnaryDiscriminator

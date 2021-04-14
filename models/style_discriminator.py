@@ -9,7 +9,7 @@ from layers import MinibatchStdDev
 from utils import create_downscale, create_activation_fn
 
 
-class MsgDiscriminator(nn.Module):
+class StyleDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
         super().__init__()
 

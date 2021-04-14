@@ -1,4 +1,4 @@
-description: "StyleGAN - Celeba HQ - norm:pixel - depth:10 - size:128"
+description: "StyleGAN - Celeba HQ - norm:pixel - depth:10 - lr:0.003 - size:128"
 entrypoint: style_gan:StyleGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
