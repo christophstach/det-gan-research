@@ -4,15 +4,16 @@ from determined import pytorch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, TorchData
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 from torch import Tensor
-from torch.optim import Adam
+from torch.optim import Adam, SGD, RMSprop
 from torchvision.utils import make_grid
+from optim import OAdam
 
 from loss_regularizers.simple_wgan_div_gradient_penalty import GradientPenalty
 from losses.ra_lsgan import RaLSGAN
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
 from models.optimal_discriminator import OptimalDiscriminator
-from models.optimal_generator import OptimalGenerator
+from models.skip_generator import SkipGenerator
 from utils import shift_image_range, create_dataset, sample_noise, create_evaluator
 
 
@@ -40,14 +41,18 @@ class GANTrail(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = OptimalGenerator(self.g_depth, self.image_channels, self.latent_dimension)
+        self.generator = SkipGenerator(self.g_depth, self.image_channels, self.latent_dimension)
         self.generator = ExponentialMovingAverage(self.generator)
         self.discriminator = OptimalDiscriminator(self.d_depth, self.image_channels)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')
         self.evaluator.eval()
 
-        self.g_opt = Adam(self.generator.parameters(), self.g_lr, (self.g_b1, self.g_b2))
-        self.d_opt = Adam(self.discriminator.parameters(), self.d_lr, (self.d_b1, self.d_b2))
+        # self.g_opt = Adam(self.generator.parameters(), self.g_lr, (self.g_b1, self.g_b2))
+        # self.d_opt = Adam(self.discriminator.parameters(), self.d_lr, (self.d_b1, self.d_b2))
+        # self.g_opt = RMSprop(self.generator.parameters(), self.g_lr)
+        # self.d_opt = RMSprop(self.discriminator.parameters(), self.d_lr)
+        self.g_opt = OAdam(self.generator.parameters(), self.g_lr, (self.g_b1, self.g_b2))
+        self.d_opt = OAdam(self.discriminator.parameters(), self.d_lr, (self.d_b1, self.d_b2))
 
         self.generator = self.context.wrap_model(self.generator)
         self.discriminator = self.context.wrap_model(self.discriminator)

@@ -1,6 +1,7 @@
 from torch import nn
-
 from torch.nn.functional import interpolate
+
+from utils import create_activation_fn
 
 
 class ResNetGenerator(nn.Module):
@@ -23,11 +24,13 @@ class ResNetGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0))
-                self.activation = nn.LeakyReLU(0.2)
+                self.compute = nn.Sequential(
+                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0)),
+                    create_activation_fn('lrelu', out_channels),
+                )
 
             def forward(self, x):
-                x = self.activation(self.compute(x))
+                x = self.compute(x)
 
                 return x
 
@@ -40,23 +43,15 @@ class ResNetGenerator(nn.Module):
                     Upscale()
                 )
 
-                # self.compute = nn.Sequential(
-                #    Upscale(),
-                #    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                # )
-
                 self.compute = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels * 4, (1, 1), (1, 1), (0, 0)),
-                    nn.PixelShuffle(2)
+                    Upscale(),
+                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
                 )
-
-                # self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1))
-
-                self.activation = nn.LeakyReLU(0.2)
 
             def forward(self, x):
                 identity = self.up(x)
-                x = self.activation(self.compute(x))
+                x = self.compute(x)
 
                 return x + identity
 
@@ -69,25 +64,16 @@ class ResNetGenerator(nn.Module):
                     Upscale()
                 )
 
-                # self.compute = nn.Sequential(
-                #    Upscale(),
-                #    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                # )
-
                 self.compute = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels * 4, (1, 1), (1, 1), (0, 0)),
-                    nn.PixelShuffle(2)
+                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1)),
+                    create_activation_fn('tanh', out_channels),
                 )
-
-                # self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1))
-
-                self.activation = nn.Tanh()
 
             def forward(self, x):
                 identity = self.up(x)
-                x = self.activation(self.compute(x))
+                x = self.compute(x)
 
-                return x + identity
+                return 0.5 * x + 0.5 * identity
 
         # END block declaration section
 

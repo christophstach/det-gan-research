@@ -1,5 +1,7 @@
-from torch import nn
+from torch import nn, Tensor
 from torch.nn.functional import interpolate
+
+from utils import create_norm, create_activation_fn
 
 
 class OptimalGenerator(nn.Module):
@@ -33,56 +35,67 @@ class OptimalGenerator(nn.Module):
 
                 self.map = nn.Sequential(
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2),
+                    create_activation_fn('lrelu', in_channels),
                     nn.Conv2d(in_channels, in_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.LeakyReLU(0.2)
+                    create_activation_fn('lrelu', in_channels)
                 )
 
-                self.compute1 = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0))
-                self.act_fn1 = nn.LeakyReLU(0.2)
-                self.norm1 = nn.BatchNorm2d(out_channels)
+                self.up = nn.Conv2d(latent_dimension, out_channels, (1, 1), (1, 1))
 
-                self.compute2 = nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                self.act_fn2 = nn.LeakyReLU(0.2)
-                self.norm2 = nn.BatchNorm2d(out_channels)
+                self.compute1 = nn.Sequential(
+                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
+
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
             def forward(self, x):
-                # x = w = self.map(x)
-                x = self.norm1(self.act_fn1(self.compute1(x)))
-                x = self.norm2(self.act_fn2(self.compute2(x)))
+                # x = self.map(x)
+                identity = x
+                x = self.compute1(x) + self.up(identity)
+                x = self.compute2(x)
 
-                return x
+                return x, identity
 
         class IntermediateBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
+                self.up = nn.Conv2d(latent_dimension, out_channels, (1, 1), (1, 1))
+
                 self.compute1 = nn.Sequential(
                     Upscale(),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
+                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
                 )
-                self.act_fn1 = nn.LeakyReLU(0.2)
-                self.norm1 = nn.BatchNorm2d(out_channels)
 
-                self.compute2 = nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                self.act_fn2 = nn.LeakyReLU(0.2)
-                self.norm2 = nn.BatchNorm2d(out_channels)
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
-            def forward(self, x):
-                x = self.norm1(self.act_fn1(self.compute1(x)))
-                x = self.norm2(self.act_fn2(self.compute2(x)))
+            def forward(self, x, identity):
+                x = self.compute1(x) + self.up(identity)
+                x = self.compute2(x)
 
                 return x
 
@@ -90,37 +103,45 @@ class OptimalGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
+                self.up = nn.Conv2d(latent_dimension, out_channels, (1, 1), (1, 1))
+
                 self.compute1 = nn.Sequential(
                     Upscale(),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
+                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
                 )
-                self.act_fn1 = nn.LeakyReLU(0.2)
-                self.norm1 = nn.BatchNorm2d(out_channels)
 
-                self.compute2 = nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                self.act_fn2 = nn.LeakyReLU(0.2)
-                self.norm2 = nn.BatchNorm2d(out_channels)
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
+
+                self.noise1 = nn.Parameter(Tensor(out_channels).fill_(1.0))
+                self.noise2 = nn.Parameter(Tensor(out_channels).fill_(1.0))
 
                 self.toRGB = nn.Sequential(
                     nn.Conv2d(out_channels, out_channels, (1, 1), (1, 1), (0, 0)),
                     nn.Tanh()
                 )
 
-            def forward(self, x):
-                x = self.norm1(self.act_fn1(self.compute1(x)))
-                x = self.norm2(self.act_fn2(self.compute2(x)))
-                x = self.toRGB(x)
 
-                print(x.shape)
+
+
+            def forward(self, x, identity):
+                x = self.compute1(x) + self.up(identity)
+                x = self.compute2(x)
+                x = self.toRGB(x)
 
                 return x
 
         # END block declaration section
 
-        channels = [
+        self.channels = [
             latent_dimension,
             # 128 * g_depth,  # 256
-            # 64 * g_depth,  # 128
+            64 * g_depth,  # 128
             32 * g_depth,  # 64
             16 * g_depth,  # 32
             8 * g_depth,  # 16
@@ -130,24 +151,31 @@ class OptimalGenerator(nn.Module):
 
         self.blocks = nn.ModuleList()
 
-        for i, channel in enumerate(channels):
+        for i, channel in enumerate(self.channels):
             if i == 0:  # first
                 self.blocks.append(
-                    FirstBlock(channel, channels[i + 1])
+                    FirstBlock(channel, self.channels[i + 1])
                 )
-            elif 0 < i < len(channels) - 2:  # intermediate
+            elif 0 < i < len(self.channels) - 2:  # intermediate
                 self.blocks.append(
-                    IntermediateBlock(channel, channels[i + 1])
+                    IntermediateBlock(channel, self.channels[i + 1])
                 )
-            elif i < len(channels) - 1:  # last
+            elif i < len(self.channels) - 1:  # last
                 self.blocks.append(
-                    LastBlock(channel, channels[i + 1])
+                    LastBlock(channel, self.channels[i + 1])
                 )
 
         self.apply(weights_init)
 
     def forward(self, x):
-        for b in self.blocks:
-            x = b(x)
+        identity = None
+
+        for i, b in enumerate(self.blocks):
+            if i == 0:  # first
+                x, identity = b(x)
+            elif 0 < i < len(self.channels) - 2:  # intermediate
+                x = b(x, identity)
+            elif i < len(self.channels) - 1:  # last
+                x = b(x, identity)
 
         return x

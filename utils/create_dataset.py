@@ -1,30 +1,83 @@
+from enum import Enum
+
+from torch.utils.data import random_split
+
 import datasets as ds
 
 
-def create_dataset(dataset: str, size: int, channels: int = None, validation: bool = False):
+class DatasetSplit(Enum):
+    FULL = 'full'
+    TRAIN = 'train'
+    VALIDATION = 'validation'
+    TEST = 'test'
+
+
+def create_dataset(dataset: str, size: int, channels: int = None, split: DatasetSplit = DatasetSplit.FULL):
     def mnist():
         if channels:
-            return ds.mnist(size, channels, validation=validation)
+            ds_full = ds.mnist(size, channels, train=(split != DatasetSplit.TEST))
         else:
-            return ds.mnist(size, validation=validation)
+            ds_full = ds.mnist(size, train=(split != DatasetSplit.TEST))
+
+        ds_train, ds_validation = random_split(ds_full, [50000, 10000])
+
+        if split == DatasetSplit.TRAIN:
+            return ds_train
+        elif split == DatasetSplit.VALIDATION:
+            return ds_validation
+        else:
+            return ds_full
 
     def ffhq():
         if channels:
-            return ds.ffhq(size, channels, validation=False)
+            ds_full = ds.ffhq(size, channels)
         else:
-            return ds.ffhq(size, validation=False)
+            ds_full = ds.ffhq(size)
+
+        ds_train, ds_validation = random_split(ds_full, [60000, 10000])
+
+        if split == DatasetSplit.TRAIN:
+            return ds_train
+        elif split == DatasetSplit.VALIDATION:
+            return ds_validation
+        elif split == DatasetSplit.TEST:
+            raise ValueError('No test set available')
+        else:
+            return ds_full
 
     def celeba_hq():
         if channels:
-            return ds.celeba_hq(size, channels, validation=validation)
+            ds_full = ds.celeba_hq(size, channels)
         else:
-            return ds.celeba_hq(size, validation=validation)
+            ds_full = ds.celeba_hq(size)
+
+        ds_train, ds_validation = random_split(ds_full, [20000, 10000])
+
+        if split == DatasetSplit.TRAIN:
+            return ds_train
+        elif split == DatasetSplit.VALIDATION:
+            return ds_validation
+        elif split == DatasetSplit.TEST:
+            raise ValueError('No test set available')
+        else:
+            return ds_full
 
     def anime_face():
         if channels:
-            return ds.anime_face(size, channels, validation=validation)
+            ds_full = ds.anime_face(size, channels)
         else:
-            return ds.anime_face(size, validation=validation)
+            ds_full = ds.anime_face(size)
+
+        ds_train, ds_validation = random_split(ds_full, [53569, 10000])
+
+        if split == DatasetSplit.TRAIN:
+            return ds_train
+        elif split == DatasetSplit.VALIDATION:
+            return ds_validation
+        elif split == DatasetSplit.TEST:
+            raise ValueError('No test set available')
+        else:
+            return ds_full
 
     dataset_dict = {
         "mnist": mnist,

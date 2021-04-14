@@ -1,118 +1,116 @@
+from torch import Tensor, sigmoid, randn_like
 from torch import nn
 
-from torch.nn.functional import interpolate
-
-import layers as l
+from utils import create_norm, create_activation_fn, create_upscale
 
 
 class SkipGenerator(nn.Module):
     def __init__(self, g_depth: int, image_channels: int, latent_dimension: int) -> None:
         super().__init__()
 
-        class Upscale(nn.Module):
-            def __init__(self):
-                super().__init__()
-
-            def forward(self, x):
-                return interpolate(
-                    input=x,
-                    scale_factor=(2, 2),
-                    mode='bilinear',
-                    align_corners=False
-                )
-
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0))
+                self.compute1 = nn.Sequential(
+                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
-                self.activation = nn.LeakyReLU(0.2)
-
-                self.norm = l.PixelNorm()
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
                 self.toRGB = nn.Sequential(
                     nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                     nn.Tanh()
                 )
 
-                self.up = Upscale()
+                self.up = create_upscale('interpolate')
+                self.alpha = nn.Parameter(Tensor(1).fill_(1.0))
 
-            def forward(self, x):
-                x = self.norm(self.activation(self.compute(x)))
-                identity = self.toRGB(x)
-                identity = self.up(identity)
+            def forward(self, x, identity):
+                x = self.compute1(x)
+                x = self.compute2(x + randn_like(x))
+                rgb = self.toRGB(x)
+                rgb = self.up(rgb)
 
-                return x, identity
+                return x, rgb
 
         class IntermediateBlock(nn.Module):
-            def __init__(self, in_channels, out_channels):
+            def __init__(self, in_channels, out_channels, size=1):
                 super().__init__()
 
-                # self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1))
-
-                # self.compute = nn.Sequential(
-                #    Upscale(),
-                #    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                # )
-
-                self.compute = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels * 4, (1, 1), (1, 1), (0, 0)),
-                    nn.PixelShuffle(2)
+                self.compute1 = nn.Sequential(
+                    create_upscale('interpolate'),
+                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
                 )
 
-                self.activation = nn.LeakyReLU(0.2)
-
-                self.norm = l.PixelNorm()
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
                 self.toRGB = nn.Sequential(
                     nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                     nn.Tanh()
                 )
 
-                self.up = Upscale()
+                self.up = create_upscale('interpolate')
+                self.alpha = nn.Parameter(Tensor(1).fill_(1.0))
+                self.beta = nn.Parameter(Tensor(image_channels, size, size).fill_(0.0))
 
-            def forward(self, x, identity):
-                x = self.norm(self.activation(self.compute(x)))
-                identity = self.toRGB(x) + identity
-                identity = self.up(identity)
+            def forward(self, x, rgb, identity):
+                x = self.compute1(x)
+                x = self.compute2(x + randn_like(x))
+                percentage = sigmoid(self.beta)
+                rgb = percentage * self.toRGB(x) * (1.0 - percentage) + rgb
+                rgb = self.up(rgb)
 
-                return x, identity
+                return x, rgb
 
         class LastBlock(nn.Module):
-            def __init__(self, in_channels, out_channels):
+            def __init__(self, in_channels, out_channels, size=1):
                 super().__init__()
 
-                # self.compute = nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1))
-
-                # self.compute = nn.Sequential(
-                #    Upscale(),
-                #    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))
-                # )
-
-                self.compute = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels * 4, (1, 1), (1, 1), (0, 0)),
-                    nn.PixelShuffle(2)
+                self.compute1 = nn.Sequential(
+                    create_upscale('interpolate'),
+                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
                 )
 
-                self.activation = nn.LeakyReLU(0.2)
-
-                self.norm = l.PixelNorm()
+                self.compute2 = nn.Sequential(
+                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    create_activation_fn('lrelu', out_channels),
+                    create_norm('pixel', out_channels)
+                )
 
                 self.toRGB = nn.Sequential(
                     nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                     nn.Tanh()
                 )
 
-            def forward(self, x, identity):
-                x = self.norm(self.activation(self.compute(x)))
-                identity = self.toRGB(x) + identity
+                self.alpha = nn.Parameter(Tensor(1).fill_(1.0))
+                self.beta = nn.Parameter(Tensor(image_channels, size, size).fill_(0.0))
 
-                return identity
+            def forward(self, x, rgb, identity):
+                x = self.compute1(x)
+                x = self.compute2(x + randn_like(x))
+                percentage = sigmoid(self.beta)
+                rgb = percentage * self.toRGB(x) + (1.0 - percentage) * rgb
+
+                return rgb
 
         # END block declaration section
 
-        channels = [
+        self.channels = [
             latent_dimension,
             64 * g_depth,
             32 * g_depth,
@@ -124,29 +122,30 @@ class SkipGenerator(nn.Module):
 
         self.blocks = nn.ModuleList()
 
-        for i, channel in enumerate(channels):
+        for i, channel in enumerate(self.channels):
             if i == 0:  # first
                 self.blocks.append(
-                    FirstBlock(channel, channels[i + 1])
+                    FirstBlock(channel, self.channels[i + 1])
                 )
-            elif 0 < i < len(channels) - 2:  # intermediate
+            elif 0 < i < len(self.channels) - 2:  # intermediate
                 self.blocks.append(
-                    IntermediateBlock(channel, channels[i + 1])
+                    IntermediateBlock(channel, self.channels[i + 1], 4 * 2 ** i)
                 )
-            elif i < len(channels) - 1:  # last
+            elif i < len(self.channels) - 1:  # last
                 self.blocks.append(
-                    LastBlock(channel, channels[i + 1])
+                    LastBlock(channel, self.channels[i + 1], 4 * 2 ** i)
                 )
 
     def forward(self, x):
-        identity = None
+        identity = x
+        rgb = None
 
         for i, b in enumerate(self.blocks):
             if i == 0:  # first
-                x, identity = b(x)
-            elif 0 < i < len(self.blocks) - 2:  # intermediate
-                x, identity = b(x, identity)
-            elif i < len(self.blocks) - 1:  # last
-                x, identity = b(x, identity)
+                x, rgb = b(x, identity)
+            elif 0 < i < len(self.channels) - 2:  # intermediate
+                x, rgb = b(x, rgb, identity)
+            elif i < len(self.channels) - 1:  # last
+                x = b(x, rgb, identity)
 
-        return identity
+        return x

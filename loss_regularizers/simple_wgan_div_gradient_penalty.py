@@ -1,5 +1,4 @@
 import torch
-from determined.pytorch import PyTorchTrialContext
 from torch import Tensor, autograd, nn
 
 
@@ -13,8 +12,8 @@ class GradientPenalty:
         real_ones = torch.ones_like(real_scores, device=real_images.device)
         fake_ones = torch.ones_like(fake_scores, device=real_images.device)
 
-        real_gradients = torch.autograd.grad(real_scores, real_images, real_ones, True)[0]
-        fake_gradients = torch.autograd.grad(fake_scores, fake_images, fake_ones, True)[0]
+        real_gradients = autograd.grad(real_scores, real_images, real_ones, True)[0]
+        fake_gradients = autograd.grad(fake_scores, fake_images, fake_ones, True)[0]
 
         real_penalties = real_gradients.norm(2, dim=1) ** 3
         fake_penalties = fake_gradients.norm(2, dim=1) ** 3

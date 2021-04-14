@@ -8,13 +8,13 @@ from activations.terelu.terelu import TEReLU
 
 def create_activation_fn(activation_fn: str, num_features: int):
     activation_fn_dict = {
-        "lrelu": lambda: LeakyReLU(0.2, inplace=True),
-        "relu": lambda: ReLU(inplace=True),
-        "relu6": lambda: ReLU6(inplace=True),
+        "lrelu": lambda: LeakyReLU(0.2, inplace=False),
+        "relu": lambda: ReLU(inplace=False),
+        "relu6": lambda: ReLU6(inplace=False),
         "prelu": lambda: PReLU(num_features, 0.2),
-        "selu": lambda: SELU(inplace=True),
-        "elu": lambda: ELU(inplace=True),
-        "silu": lambda: SiLU(inplace=True),
+        "selu": lambda: SELU(inplace=False),
+        "elu": lambda: ELU(inplace=False),
+        "silu": lambda: SiLU(inplace=False),
         "gelu": lambda: GELU(),
         "mish": lambda: Mish(),
         "swish": lambda: Swish(),

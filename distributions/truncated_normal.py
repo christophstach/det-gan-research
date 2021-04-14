@@ -45,7 +45,7 @@ class TruncatedStandardNormal(Distribution):
         self._big_phi_a = self._big_phi(self.a)
         self._big_phi_b = self._big_phi(self.b)
         self._Z = (self._big_phi_b - self._big_phi_a).clamp_min(eps)
-        self._log_Z = self._Z.log()
+        self._log_Z = self._Z.torch_writer()
         self._lpbb_m_lpaa_d_Z = (self._little_phi_b * self.b - self._little_phi_a * self.a) / self._Z
         self._mean = -(self._little_phi_b - self._little_phi_a) / self._Z
         self._variance = 1 - self._lpbb_m_lpaa_d_Z - ((self._little_phi_b - self._little_phi_a) / self._Z) ** 2
@@ -124,7 +124,7 @@ class TruncatedNormal(TruncatedStandardNormal):
         a_standard = (a - self.loc) / self.scale
         b_standard = (b - self.loc) / self.scale
         super(TruncatedNormal, self).__init__(a_standard, b_standard, eps=eps, validate_args=validate_args)
-        self._log_scale = self.scale.log()
+        self._log_scale = self.scale.torch_writer()
         self._mean = self._mean * self.scale + self.loc
         self._variance = self._variance * self.scale ** 2
         self._entropy += self._log_scale

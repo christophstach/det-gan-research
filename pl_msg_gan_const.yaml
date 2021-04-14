@@ -1,5 +1,5 @@
-description: "CelebA HQ - GAN - EMA - RaLSGAN - depth:g8/d8 - 16 => 128x128"
-entrypoint: gan:GANTrail
+description: "Celeba HQ - MSG"
+entrypoint: pl_msg_gan:PlMsgGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 63632 # for anime-face
@@ -12,7 +12,7 @@ searcher:
     batches: 500000
 
 min_validation_period:
-  batches: 5000
+  batches: 1000
 
 min_checkpoint_period:
   batches: 10000
@@ -31,9 +31,10 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 128
+  image_size: 64
   image_channels: 3
-  latent_dimension: 16
+  latent_dim: 16
+  score_dim: 1
 
   g_depth: 8
   d_depth: 8

@@ -1,7 +1,7 @@
 from torchvision import datasets, transforms
 
 
-def mnist(size=28, channels=1, root="/datasets", validation=False):
+def mnist(size=28, channels=1, root="/datasets", train=True):
     assert channels == 1 or channels == 3
 
     transform_ops = [
@@ -16,7 +16,7 @@ def mnist(size=28, channels=1, root="/datasets", validation=False):
 
     return datasets.MNIST(
         root,
-        train=not validation,
+        train=train,
         download=False,
         transform=transform
     )

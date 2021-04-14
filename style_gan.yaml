@@ -1,18 +1,18 @@
-description: "CelebA HQ - GAN - EMA - RaLSGAN - depth:g8/d8 - 16 => 128x128"
-entrypoint: gan:GANTrail
+description: "StyleGAN - Celeba HQ - norm:pixel - depth:10 - size:128"
+entrypoint: style_gan:StyleGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 63632 # for anime-face
 
 searcher:
   name: single
-  metric: val_classifier_score
-  smaller_is_better: false
+  metric: val_fid
+  smaller_is_better: true
   max_length:
     batches: 500000
 
 min_validation_period:
-  batches: 5000
+  batches: 10000
 
 min_checkpoint_period:
   batches: 10000
@@ -33,16 +33,17 @@ hyperparameters:
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dimension: 16
+  latent_dim: 128
+  score_dim: 1
 
-  g_depth: 8
-  d_depth: 8
+  g_depth: 10
+  d_depth: 10
 
-  g_lr: 0.0002
+  g_lr: 0.003
   g_b1: 0.5
   g_b2: 0.999
 
-  d_lr: 0.0002
+  d_lr: 0.003
   d_b1: 0.5
   d_b2: 0.999
 
