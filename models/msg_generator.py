@@ -10,7 +10,7 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'pixel'
+        norm = 'instance'
         activation_fn = 'lrelu'
         upscale = 'interpolate'
 

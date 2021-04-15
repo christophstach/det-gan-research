@@ -46,9 +46,9 @@ class StyleGanTrial(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = StyleGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
+        self.generator = MsgGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
         self.generator = ExponentialMovingAverage(self.generator)
-        self.discriminator = StyleDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
+        self.discriminator = MsgDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')
         self.evaluator.eval()
 
