@@ -13,10 +13,8 @@ from losses.ra_lsgan import RaLSGAN
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
-from models.style_generator import StyleGenerator
 from models.style_discriminator import StyleDiscriminator
-from models.msg_discriminator import MsgDiscriminator
-from models.msg_generator import MsgGenerator
+from models.style_generator import StyleGenerator
 from utils import shift_image_range, create_dataset, create_evaluator, to_scaled_images
 from utils.create_dataset import DatasetSplit
 
@@ -46,9 +44,9 @@ class StyleGanTrial(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = MsgGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
+        self.generator = StyleGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
         self.generator = ExponentialMovingAverage(self.generator)
-        self.discriminator = MsgDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
+        self.discriminator = StyleDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')
         self.evaluator.eval()
 
@@ -77,6 +75,9 @@ class StyleGanTrial(PyTorchTrial):
             for_training=False,
             for_validation=True
         )
+
+    def forward(self, z):
+        return self.generator(z)
 
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Union[Tensor, Dict[str, Any]]:
         real_images, _ = batch

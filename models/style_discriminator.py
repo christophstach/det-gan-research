@@ -16,26 +16,26 @@ class StyleDiscriminator(nn.Module):
         downscale = 'avgpool'
         activation_fn = 'lrelu'
 
-        def weights_init(m):
-            class_name = m.__class__.__name__
+        class Conv(nn.Module):
+            def __init__(self, in_channels, out_channels):
+                super().__init__()
 
-            if class_name.find('Conv') != -1:
-                nn.init.normal_(m.weight.data, 0.0, 0.02)
-            elif class_name.find('BatchNorm') != -1:
-                nn.init.normal_(m.weight.data, 1.0, 0.02)
-                nn.init.constant_(m.bias.data, 0)
+                self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
+
+            def forward(self, x):
+                return self.conv(x)
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
                 self.compute1 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, in_channels),
                     create_activation_fn(activation_fn, out_channels),
                 )
 
                 self.compute2 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                     create_downscale(downscale)
                 )
@@ -53,12 +53,12 @@ class StyleDiscriminator(nn.Module):
                 self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels * 2, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels * 2, in_channels),
                     create_activation_fn(activation_fn, in_channels),
                 )
 
                 self.compute2 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                     create_downscale(downscale)
                 )
@@ -77,7 +77,7 @@ class StyleDiscriminator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     MinibatchStdDev(),
-                    sn(nn.Conv2d(in_channels * 2 + 1, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels * 2 + 1, in_channels),
                     create_activation_fn(activation_fn, in_channels),
                 )
 
@@ -122,8 +122,6 @@ class StyleDiscriminator(nn.Module):
                 self.blocks.append(
                     LastBlock(channel, channels[i + 1])
                 )
-
-        self.apply(weights_init)
 
     def forward(self, rgbs: List[Tensor]):
         if self.pack > 1:

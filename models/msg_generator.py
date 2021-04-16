@@ -1,7 +1,7 @@
 import math
 
-import torch
 from torch import nn, Tensor
+from torch.nn.utils import spectral_norm as sn
 
 from utils import create_activation_fn, create_norm, create_upscale
 
@@ -10,21 +10,30 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'instance'
+        norm = 'batch'
         activation_fn = 'lrelu'
-        upscale = 'interpolate'
+        upscale = 'nearest'
+
+        class Conv(nn.Module):
+            def __init__(self, in_channels, out_channels):
+                super().__init__()
+                # symmetric padding would be better
+                self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+
+            def forward(self, x):
+                return self.conv(x)
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
                 self.compute1 = nn.Sequential(
-                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
@@ -41,11 +50,11 @@ class MsgGenerator(nn.Module):
 
             def forward(self, x):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x)
 
                 return x, self.toRGB(x)
@@ -56,12 +65,12 @@ class MsgGenerator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     create_upscale(upscale, in_channels),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
@@ -78,11 +87,11 @@ class MsgGenerator(nn.Module):
 
             def forward(self, x):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x)
 
                 return x, self.toRGB(x)
@@ -93,12 +102,12 @@ class MsgGenerator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     create_upscale(upscale, in_channels),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
@@ -115,11 +124,11 @@ class MsgGenerator(nn.Module):
 
             def forward(self, x):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x)
 
                 return x, self.toRGB(x)

@@ -12,19 +12,29 @@ class StyleGenerator(nn.Module):
         super().__init__()
 
         activation_fn = 'lrelu'
-        upscale = 'interpolate'
+        disentangler_activation_fn = 'mish'
+        upscale = 'nearest'
+
+        class Conv(nn.Module):
+            def __init__(self, in_channels, out_channels):
+                super().__init__()
+
+                self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+
+            def forward(self, x):
+                return self.conv(x)
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
                 self.compute1 = nn.Sequential(
-                    nn.ConvTranspose2d(in_channels, out_channels, (4, 4), (1, 1), (0, 0)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
@@ -56,12 +66,12 @@ class StyleGenerator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     create_upscale(upscale, in_channels),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                 )
 
@@ -93,12 +103,12 @@ class StyleGenerator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     create_upscale(upscale, in_channels),
-                    nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
                 self.compute2 = nn.Sequential(
-                    nn.Conv2d(out_channels, out_channels, (3, 3), (1, 1), (1, 1)),
+                    Conv(out_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels)
                 )
 
@@ -137,24 +147,14 @@ class StyleGenerator(nn.Module):
 
         self.disentangler = nn.Sequential(
             nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
+            create_activation_fn(disentangler_activation_fn, latent_dim),
             nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
+            create_activation_fn(disentangler_activation_fn, latent_dim),
             nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
-            nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
-            nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
-            nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
-            nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim),
-            nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0)),
-            create_activation_fn(activation_fn, latent_dim)
+            create_activation_fn(disentangler_activation_fn, latent_dim)
         )
 
-        self.const = nn.Parameter(Tensor(latent_dim, 1, 1))
+        self.const = nn.Parameter(Tensor(latent_dim, 4, 4))
         self.blocks = nn.ModuleList()
 
         for i, channel in enumerate(self.channels):

@@ -16,17 +16,26 @@ class MsgDiscriminator(nn.Module):
         downscale = 'avgpool'
         activation_fn = 'lrelu'
 
+        class Conv(nn.Module):
+            def __init__(self, in_channels, out_channels):
+                super().__init__()
+
+                self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
+
+            def forward(self, x):
+                return self.conv(x)
+
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
                 self.compute1 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, in_channels),
                     create_activation_fn(activation_fn, out_channels),
                 )
 
                 self.compute2 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                     create_downscale(downscale)
                 )
@@ -44,12 +53,12 @@ class MsgDiscriminator(nn.Module):
                 self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels * 2, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels * 2, in_channels),
                     create_activation_fn(activation_fn, in_channels),
                 )
 
                 self.compute2 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
                     create_downscale(downscale)
                 )
@@ -68,7 +77,7 @@ class MsgDiscriminator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     MinibatchStdDev(),
-                    sn(nn.Conv2d(in_channels * 2 + 1, in_channels, (3, 3), (1, 1), (1, 1))),
+                    Conv(in_channels * 2 + 1, in_channels),
                     create_activation_fn(activation_fn, in_channels),
                 )
 
