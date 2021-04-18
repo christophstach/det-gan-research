@@ -7,10 +7,6 @@ class PixelNorm(nn.Module):
         super().__init__()
 
     def forward(self, x, alpha=1e-8):
-        y = x ** 2
-        y = y.mean(dim=1, keepdim=True)
-        y = y + alpha
-        y = y.sqrt()
-
-        y = x / y
+        y = x.pow(2.).mean(dim=1, keepdim=True).add(alpha).sqrt()  # [N1HW]
+        y = x / y  # normalize the input x volume
         return y

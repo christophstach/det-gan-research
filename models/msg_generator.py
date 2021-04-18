@@ -9,9 +9,9 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'batch'
+        norm = 'passthrough'
         activation_fn = 'lrelu'
-        upscale = 'bilinear'
+        upscale = 'nearest'
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
