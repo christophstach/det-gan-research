@@ -20,7 +20,7 @@ class StyleDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
+                self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='replicate'))
 
             def forward(self, x):
                 return self.conv(x)

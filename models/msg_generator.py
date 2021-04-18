@@ -1,7 +1,6 @@
 import math
 
 from torch import nn, Tensor
-from torch.nn.utils import spectral_norm as sn
 
 from utils import create_activation_fn, create_norm, create_upscale
 
@@ -12,12 +11,12 @@ class MsgGenerator(nn.Module):
 
         norm = 'batch'
         activation_fn = 'lrelu'
-        upscale = 'nearest'
+        upscale = 'bilinear'
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
-                # symmetric padding would be better
+                # symmetric padding would be better (circular padding is also good, replicate is equal to symmetric if padding=1)
                 self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
 
             def forward(self, x):
@@ -37,6 +36,7 @@ class MsgGenerator(nn.Module):
                     create_activation_fn(activation_fn, out_channels)
                 )
 
+                self.norm0 = create_norm(norm, in_channels)
                 self.norm1 = create_norm(norm, out_channels)
                 self.norm2 = create_norm(norm, out_channels)
 
@@ -49,6 +49,8 @@ class MsgGenerator(nn.Module):
                 )
 
             def forward(self, x):
+                x = self.norm0(x)
+
                 x = self.compute1(x)
                 # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x)

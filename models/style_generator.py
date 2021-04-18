@@ -19,7 +19,7 @@ class StyleGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='replicate')
 
             def forward(self, x):
                 return self.conv(x)
@@ -51,11 +51,11 @@ class StyleGenerator(nn.Module):
 
             def forward(self, x, w):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x, w)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x, w)
 
                 return x, self.toRGB(x)
@@ -88,11 +88,11 @@ class StyleGenerator(nn.Module):
 
             def forward(self, x, w):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x, w)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x, w)
 
                 return x, self.toRGB(x)
@@ -125,11 +125,11 @@ class StyleGenerator(nn.Module):
 
             def forward(self, x, w):
                 x = self.compute1(x)
-                x += torch.randn_like(x) * self.noise1
+                # x += torch.randn_like(x) * self.noise1
                 x = self.norm1(x, w)
 
                 x = self.compute2(x)
-                x += torch.randn_like(x) * self.noise2
+                # x += torch.randn_like(x) * self.noise2
                 x = self.norm2(x, w)
 
                 return x, self.toRGB(x)

@@ -1,4 +1,4 @@
-description: "MsgGAN - Celeba HQ - norm:batch - depth:10 - lr:0.0002 - size:128"
+description: "MsgGAN - Celeba HQ - norm:batch - upscale:bilinear - pad:reflect - depth:10 - lr:0.0002 - size:128"
 entrypoint: msg_gan:MsgGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
