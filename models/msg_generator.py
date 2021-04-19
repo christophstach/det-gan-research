@@ -2,6 +2,7 @@ import math
 
 from torch import nn, Tensor
 
+from layers.conv import EqlConv2d
 from utils import create_activation_fn, create_norm, create_upscale
 
 
@@ -9,15 +10,19 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'passthrough'
+        norm = 'pixel'
         activation_fn = 'lrelu'
         upscale = 'nearest'
+        eql = True
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
-                # symmetric padding would be better (circular padding is also good, replicate is equal to symmetric if padding=1)
-                self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+
+                if eql:
+                    self.conv = EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                else:
+                    self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
 
             def forward(self, x):
                 return self.conv(x)
@@ -43,10 +48,16 @@ class MsgGenerator(nn.Module):
                 self.noise1 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
                 self.noise2 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
 
-                self.toRGB = nn.Sequential(
-                    nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.Tanh()
-                )
+                if eql:
+                    self.toRGB = nn.Sequential(
+                        EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
+                else:
+                    self.toRGB = nn.Sequential(
+                        nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
 
             def forward(self, x):
                 x = self.norm0(x)
@@ -82,10 +93,16 @@ class MsgGenerator(nn.Module):
                 self.noise1 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
                 self.noise2 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
 
-                self.toRGB = nn.Sequential(
-                    nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.Tanh()
-                )
+                if eql:
+                    self.toRGB = nn.Sequential(
+                        EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
+                else:
+                    self.toRGB = nn.Sequential(
+                        nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
 
             def forward(self, x):
                 x = self.compute1(x)
@@ -119,10 +136,16 @@ class MsgGenerator(nn.Module):
                 self.noise1 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
                 self.noise2 = nn.Parameter(Tensor(out_channels, 1, 1).fill_(1.0))
 
-                self.toRGB = nn.Sequential(
-                    nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
-                    nn.Tanh()
-                )
+                if eql:
+                    self.toRGB = nn.Sequential(
+                        EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
+                else:
+                    self.toRGB = nn.Sequential(
+                        nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Tanh()
+                    )
 
             def forward(self, x):
                 x = self.compute1(x)

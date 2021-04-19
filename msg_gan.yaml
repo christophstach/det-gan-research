@@ -1,4 +1,4 @@
-description: "MsgGAN - Celeba HQ - norm:passthrough - upscale:nearest - pad:reflect - depth:10 - lr:0.0002 - size:128"
+description: "MsgGAN - Celeba HQ - EQL - norm:pixel - upscale:nearest - pad:reflect - depth:10 - lr:0.01 - size:128"
 entrypoint: msg_gan:MsgGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
@@ -12,7 +12,7 @@ searcher:
     batches: 500000
 
 min_validation_period:
-  batches: 10000
+  batches: 1000
 
 min_checkpoint_period:
   batches: 10000
@@ -39,11 +39,11 @@ hyperparameters:
   g_depth: 10
   d_depth: 10
 
-  g_lr: 0.0002
+  g_lr: 0.01
   g_b1: 0.5
   g_b2: 0.999
 
-  d_lr: 0.0002
+  d_lr: 0.01
   d_b1: 0.5
   d_b2: 0.999
 

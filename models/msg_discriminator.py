@@ -6,6 +6,7 @@ from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
 from layers import MinibatchStdDev
+from layers.conv import EqlConv2d
 from utils import create_downscale, create_activation_fn
 
 
@@ -15,12 +16,16 @@ class MsgDiscriminator(nn.Module):
 
         downscale = 'avgpool'
         activation_fn = 'lrelu'
+        eql = True
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='replicate'))
+                if eql:
+                    self.conv = EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                else:
+                    self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
 
             def forward(self, x):
                 return self.conv(x)
@@ -50,7 +55,10 @@ class MsgDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
+                if eql:
+                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
+                else:
+                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
                     Conv(in_channels * 2, in_channels),
@@ -73,7 +81,10 @@ class MsgDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
+                if eql:
+                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
+                else:
+                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
                     MinibatchStdDev(),
@@ -86,7 +97,10 @@ class MsgDiscriminator(nn.Module):
                     create_activation_fn(activation_fn, out_channels),
                 )
 
-                self.scorer = nn.Conv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
+                if eql:
+                    self.scorer = EqlConv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
+                else:
+                    self.scorer = nn.Conv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
 
             def forward(self, x, rgb):
                 x = self.compute1(torch.cat([x, self.fromRGB(rgb)], dim=1))

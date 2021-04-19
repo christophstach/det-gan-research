@@ -90,8 +90,8 @@ class EqlConv2d(nn.Module):
         if self.padding_mode != 'zeros':
             return F.conv2d(
                 F.pad(x, self._reversed_padding_repeated_twice, mode=self.padding_mode),
-                self.weight,
-                self.bias if self.bias else None,
+                self.weight * self.scale,
+                self.bias,
                 self.stride,
                 _pair(0),
                 self.dilation,
@@ -99,8 +99,8 @@ class EqlConv2d(nn.Module):
             )
         return F.conv2d(
             x,
-            self.weight,
-            self.bias if self.bias else None,
+            self.weight * self.scale,
+            self.bias,
             self.stride,
             self.padding,
             self.dilation,
