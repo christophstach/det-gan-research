@@ -10,8 +10,8 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'pixel'
-        activation_fn = 'lrelu'
+        norm = 'batch'
+        activation_fn = 'prelu'
         upscale = 'nearest'
         eql = True
 

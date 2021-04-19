@@ -15,7 +15,7 @@ class MsgDiscriminator(nn.Module):
         super().__init__()
 
         downscale = 'avgpool'
-        activation_fn = 'lrelu'
+        activation_fn = 'prelu'
         eql = True
 
         class Conv(nn.Module):
@@ -23,9 +23,9 @@ class MsgDiscriminator(nn.Module):
                 super().__init__()
 
                 if eql:
-                    self.conv = EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                    self.conv = sn(EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
                 else:
-                    self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                    self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
 
             def forward(self, x):
                 return self.conv(x)
@@ -36,7 +36,7 @@ class MsgDiscriminator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     Conv(in_channels, in_channels),
-                    create_activation_fn(activation_fn, out_channels),
+                    create_activation_fn(activation_fn, in_channels)
                 )
 
                 self.compute2 = nn.Sequential(
@@ -62,7 +62,7 @@ class MsgDiscriminator(nn.Module):
 
                 self.compute1 = nn.Sequential(
                     Conv(in_channels * 2, in_channels),
-                    create_activation_fn(activation_fn, in_channels),
+                    create_activation_fn(activation_fn, in_channels)
                 )
 
                 self.compute2 = nn.Sequential(
@@ -89,13 +89,19 @@ class MsgDiscriminator(nn.Module):
                 self.compute1 = nn.Sequential(
                     MinibatchStdDev(),
                     Conv(in_channels * 2 + 1, in_channels),
-                    create_activation_fn(activation_fn, in_channels),
+                    create_activation_fn(activation_fn, in_channels)
                 )
 
-                self.compute2 = nn.Sequential(
-                    sn(nn.Conv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0))),
-                    create_activation_fn(activation_fn, out_channels),
-                )
+                if eql:
+                    self.compute2 = nn.Sequential(
+                        sn(EqlConv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0))),
+                        create_activation_fn(activation_fn, out_channels)
+                    )
+                else:
+                    self.compute2 = nn.Sequential(
+                        sn(nn.Conv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0))),
+                        create_activation_fn(activation_fn, out_channels)
+                    )
 
                 if eql:
                     self.scorer = EqlConv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
