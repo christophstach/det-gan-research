@@ -1,7 +1,6 @@
 from typing import Union, Dict, Any
 
 import torch
-from determined import pytorch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, TorchData
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 from torch import Tensor
@@ -9,7 +8,6 @@ from torch.optim import Adam
 from torchvision.utils import make_grid
 
 from loss_regularizers.msg_wgan_div_gradient_penalty import MsgWganDivGradientPenalty
-from losses import RaHinge
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
@@ -17,6 +15,8 @@ from models.msg_discriminator import MsgDiscriminator
 from models.msg_generator import MsgGenerator
 from utils import shift_image_range, create_dataset, create_evaluator, to_scaled_images, create_loss_fn
 from utils.create_dataset import DatasetSplit
+
+from math import isnan
 
 
 class MsgGanTrial(PyTorchTrial):
@@ -61,7 +61,7 @@ class MsgGanTrial(PyTorchTrial):
         self.g_opt = self.context.wrap_optimizer(self.g_opt)
         self.d_opt = self.context.wrap_optimizer(self.d_opt)
 
-        self.loss = create_loss_fn(self.loss_fn)
+        self.loss = create_loss_fn(self.loss_fn, self.score_dim)
         self.gradient_penalty = MsgWganDivGradientPenalty(self.discriminator)
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim, 4, 4)
 
@@ -119,25 +119,30 @@ class MsgGanTrial(PyTorchTrial):
         return {'g_loss': g_loss.item()}
 
     def discriminator_batch(self, real_images, batch_size):
-        real_images = [r.requires_grad_(True) for r in real_images]
+        # real_images = [r.requires_grad_(True) for r in real_images]
 
         self.discriminator.zero_grad()
 
-        z = torch.randn(batch_size, self.latent_dim, 4, 4, requires_grad=True)
+        # z = torch.randn(batch_size, self.latent_dim, 4, 4, requires_grad=True)
+        z = torch.randn(batch_size, self.latent_dim, 4, 4)
         z = self.context.to_device(z)
-        fake_images = self.generator(z)
+        # fake_images = self.generator(z)
+
+        with torch.no_grad():
+            fake_images = self.generator(z)
 
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)
 
         d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
-        gp = self.gradient_penalty(real_images, fake_images, real_scores, fake_scores)
+        # gp = self.gradient_penalty(real_images, fake_images, real_scores, fake_scores)
 
-        self.context.backward(d_loss + gp)
+        # self.context.backward(d_loss + gp)
+        self.context.backward(d_loss)
         self.context.step_optimizer(self.d_opt)
 
-        return {'d_loss': d_loss.item(), 'gp': gp.item()}
-        # return {'d_loss': d_loss.item()}
+        # return {'d_loss': d_loss.item(), 'gp': gp.item()}
+        return {'d_loss': d_loss.item()}
 
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
         real_images, _ = batch
@@ -183,8 +188,8 @@ class MsgGanTrial(PyTorchTrial):
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)
 
-        val_d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
-        val_g_loss = self.loss.generator_loss(real_scores, fake_scores)
+        val_d_loss = self.loss.discriminator_loss(real_scores, fake_scores).item()
+        val_g_loss = self.loss.generator_loss(real_scores, fake_scores).item()
 
         val_classifier_score = self.classifier_score(fake_images[0])
         self.fid.update(real_images[0], fake_images[0])
@@ -193,16 +198,9 @@ class MsgGanTrial(PyTorchTrial):
         self.discriminator.train()
 
         return {
-            'val_d_loss': val_d_loss.item(),
-            'val_g_loss': val_g_loss.item(),
-            'val_classifier_score': val_classifier_score,
-        }
-
-    def evaluation_reducer(self) -> Union[pytorch.Reducer, Dict[str, pytorch.Reducer]]:
-        return {
-            'val_d_loss': pytorch.Reducer.AVG,
-            'val_g_loss': pytorch.Reducer.AVG,
-            'val_classifier_score': pytorch.Reducer.AVG,
+            'val_d_loss': val_d_loss if not isnan(val_d_loss) else 0,
+            'val_g_loss': val_g_loss if not isnan(val_g_loss) else 0,
+            'val_classifier_score': val_classifier_score if not isnan(val_classifier_score) else 0,
         }
 
     def build_training_data_loader(self) -> DataLoader:

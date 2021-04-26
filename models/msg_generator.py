@@ -1,7 +1,6 @@
 import math
 
-import torch
-from torch import nn, Tensor
+from torch import nn
 
 from layers.conv import EqlConv2d
 from utils import create_activation_fn, create_norm, create_upscale
@@ -89,17 +88,17 @@ class MsgGenerator(nn.Module):
 
                 if eql:
                     self.toRGB = nn.Sequential(
-                        EqlConv2d(out_channels + image_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                         nn.Tanh()
                     )
                 else:
                     self.toRGB = nn.Sequential(
-                        nn.Conv2d(out_channels + image_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                         nn.Tanh()
                     )
 
             def forward(self, x, identity):
-                identity = self.up(identity)
+                # identity = self.up(identity)
                 x = self.up(x)
 
                 x = self.compute1(x)
@@ -108,7 +107,7 @@ class MsgGenerator(nn.Module):
                 x = self.compute2(x)
                 x = self.norm2(x)
 
-                rgb = self.toRGB(torch.cat([x, identity], dim=1))
+                rgb = self.toRGB(x)
                 return x, rgb
 
         class LastBlock(nn.Module):
@@ -132,17 +131,17 @@ class MsgGenerator(nn.Module):
 
                 if eql:
                     self.toRGB = nn.Sequential(
-                        EqlConv2d(out_channels + image_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                         nn.Tanh()
                     )
                 else:
                     self.toRGB = nn.Sequential(
-                        nn.Conv2d(out_channels + image_channels, image_channels, (1, 1), (1, 1), (0, 0)),
+                        nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)),
                         nn.Tanh()
                     )
 
             def forward(self, x, identity):
-                identity = self.up(identity)
+                # identity = self.up(identity)
                 x = self.up(x)
 
                 x = self.compute1(x)
@@ -151,7 +150,7 @@ class MsgGenerator(nn.Module):
                 x = self.compute2(x)
                 x = self.norm2(x)
 
-                rgb = self.toRGB(torch.cat([x, identity], dim=1))
+                rgb = self.toRGB(x)
                 return x, rgb
 
         # END block declaration section

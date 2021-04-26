@@ -1,51 +1,56 @@
 import torch
-from numpy import random, histogram, array
+from numpy import histogram, array
+from scipy.stats import skewnorm
 from torch import Tensor, from_numpy
 
 import losses.base.loss
 
 
+def kl_div(p, q):
+    return torch.mean(torch.sum(p * (p / q).log(), dim=1))
+
+
 class Realness(losses.base.Loss):
-    def __init__(self, num_outcomes=32) -> None:
+    def __init__(self, score_dim) -> None:
         super().__init__()
 
-        self.num_outcomes = num_outcomes
+        self.score_dim = score_dim
 
-        gauss = random.normal(0.0, 0.1, 10000)
-        count, _ = histogram(gauss, self.num_outcomes)
-        self.real_anchor = from_numpy(array(count / sum(count))).float()
+        # gauss = random.normal(0.0, 0.1, size=10000)
+        # count, _ = histogram(gauss, self.score_dim)
+        # self.anchor0 = from_numpy(count / sum(count)).float()
 
-        uniform = random.uniform(-1.0, 1.0, 10000)
-        count, _ = histogram(uniform, self.num_outcomes)
-        self.fake_anchor = from_numpy(array(count / sum(count))).float()
+        # uniform = random.uniform(-1.0, 1.0, size=10000)
+        # count, _ = histogram(uniform, self.score_dim)
+        # self.anchor1 = from_numpy(count / sum(count)).float()
 
-    def kl_div(self, p, q):
-        return torch.mean(torch.sum(p * (p / q).log(), dim=1))
+        skew_left = skewnorm.rvs(-5, size=10000)
+        count, _ = histogram(skew_left, self.score_dim)
+        self.anchor0 = from_numpy(count / sum(count)).float()
+
+        skew_right = skewnorm.rvs(5, size=10000)
+        count, _ = histogram(skew_right, self.score_dim)
+        self.anchor1 = from_numpy(count / sum(count)).float()
 
     def discriminator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
-        self.real_anchor = self.real_anchor.to(real_scores.device)
-        self.fake_anchor = self.real_anchor.to(real_scores.device)
+        self.anchor0 = self.anchor0.to(real_scores.device)
+        self.anchor1 = self.anchor1.to(real_scores.device)
 
-        real_loss = self.kl_div(real_scores, self.fake_anchor)
-        fake_loss = self.kl_div(self.real_anchor, fake_scores)
-        loss = real_loss + fake_loss
+        loss = kl_div(self.anchor1, real_scores) + kl_div(self.anchor0, fake_scores)
 
         return loss
 
     def generator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
-        self.real_anchor = self.real_anchor.to(real_scores.device)
-        self.fake_anchor = self.real_anchor.to(real_scores.device)
+        self.anchor0 = self.anchor0.to(real_scores.device)
+        self.anchor1 = self.anchor1.to(real_scores.device)
 
         # No relativism
-        # loss = self.kl_div(self.fake_anchor, fake_scores)
+        # loss = kl_div(self.anchor0, fake_scores)
 
-        # EQ19_V1
-        # loss = self.kl_div(self.fake_anchor, fake_scores) + self.kl_div(real_scores, fake_scores)
-
-        # EQ19_V2 (default)
-        loss = -self.kl_div(self.real_anchor, fake_scores) + self.kl_div(real_scores, fake_scores)
+        # EQ19 (default)
+        loss = kl_div(real_scores, fake_scores) - kl_div(self.anchor0, fake_scores)
 
         # EQ20
-        # loss = self.kl_div(self.fake_anchor, fake_scores) - self.kl_div(self.real_anchor, fake_scores)
+        # loss = kl_div(self.anchor1, fake_scores) - kl_div(self.anchor0, fake_scores)
 
         return loss

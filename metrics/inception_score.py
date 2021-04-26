@@ -46,8 +46,8 @@ class ClassifierScore:
         p = F.softmax(x, dim=1)
         q = torch.mean(p, dim=0)
 
-        kl = torch.sum(p * (F.log_softmax(x, dim=1) - torch.log(q)), dim=1)
-        return torch.exp(torch.mean(kl)).item()
+        kl_div = torch.sum(p * (F.log_softmax(x, dim=1) - torch.log(q)), dim=1)
+        return torch.exp(torch.mean(kl_div)).item()
 
 
 # https://github.com/sbarratt/inception-score-pytorch/blob/master/inception_score.py

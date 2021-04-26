@@ -18,6 +18,14 @@ class MsgDiscriminator(nn.Module):
         activation_fn = 'lrelu'
         eql = False
 
+        class Reshape(nn.Module):
+            def __init__(self, shape):
+                super().__init__()
+                self.shape = shape
+
+            def forward(self, x):
+                return x.view(*self.shape)
+
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
@@ -104,9 +112,17 @@ class MsgDiscriminator(nn.Module):
                     )
 
                 if eql:
-                    self.scorer = EqlConv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
+                    self.scorer = nn.Sequential(
+                        sn(EqlConv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))),
+                        nn.Softmax()
+                    )
                 else:
-                    self.scorer = nn.Conv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))
+                    self.scorer = nn.Sequential(
+                        Reshape(shape=(-1, in_channels)),
+                        sn(nn.Linear(in_channels, out_channels)),
+                        # sn(nn.Conv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))),
+                        nn.Softmax()
+                    )
 
             def forward(self, x, rgb):
                 x = self.compute1(torch.cat([x, self.fromRGB(rgb)], dim=1))
