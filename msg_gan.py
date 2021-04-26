@@ -9,13 +9,13 @@ from torch.optim import Adam
 from torchvision.utils import make_grid
 
 from loss_regularizers.msg_wgan_div_gradient_penalty import MsgWganDivGradientPenalty
-from losses.ra_lsgan import RaLSGAN
+from losses import RaHinge
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
 from models.msg_discriminator import MsgDiscriminator
 from models.msg_generator import MsgGenerator
-from utils import shift_image_range, create_dataset, create_evaluator, to_scaled_images
+from utils import shift_image_range, create_dataset, create_evaluator, to_scaled_images, create_loss_fn
 from utils.create_dataset import DatasetSplit
 
 
@@ -32,6 +32,7 @@ class MsgGanTrial(PyTorchTrial):
         self.image_channels = self.context.get_hparam('image_channels')
         self.latent_dim = self.context.get_hparam('latent_dim')
         self.score_dim = self.context.get_hparam('score_dim')
+        self.loss_fn = self.context.get_hparam('loss_fn')
 
         self.g_depth = self.context.get_hparam('g_depth')
         self.d_depth = self.context.get_hparam('d_depth')
@@ -60,7 +61,7 @@ class MsgGanTrial(PyTorchTrial):
         self.g_opt = self.context.wrap_optimizer(self.g_opt)
         self.d_opt = self.context.wrap_optimizer(self.d_opt)
 
-        self.loss = RaLSGAN()
+        self.loss = create_loss_fn(self.loss_fn)
         self.gradient_penalty = MsgWganDivGradientPenalty(self.discriminator)
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim, 4, 4)
 
@@ -136,6 +137,7 @@ class MsgGanTrial(PyTorchTrial):
         self.context.step_optimizer(self.d_opt)
 
         return {'d_loss': d_loss.item(), 'gp': gp.item()}
+        # return {'d_loss': d_loss.item()}
 
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
         real_images, _ = batch

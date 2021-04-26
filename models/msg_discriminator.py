@@ -14,9 +14,9 @@ class MsgDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
         super().__init__()
 
-        downscale = 'avgpool'
-        activation_fn = 'prelu'
-        eql = True
+        downscale = 'bilinear'
+        activation_fn = 'lrelu'
+        eql = False
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):

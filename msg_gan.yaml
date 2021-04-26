@@ -1,4 +1,4 @@
-description: "MsgGAN - Celeba HQ - EQL - norm:batch - scale:bilinear - pad:reflect - depth:8 - lr:0.0002 - size:128"
+description: "MsgGAN - Celeba HQ - RaHinge - norm:batch - scale:bilinear - pad:reflect - depth:8 - lr:0.0005 - size:128"
 entrypoint: msg_gan:MsgGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
@@ -33,17 +33,18 @@ hyperparameters:
   dataset: celeba-hq
   image_size: 128
   image_channels: 3
-  latent_dim: 2 # {latent_dim}x4x4
+  latent_dim: 32 # {latent_dim}x4x4
   score_dim: 1
+  loss_fn: RaHinge
 
   g_depth: 8
   d_depth: 8
 
-  g_lr: 0.0002
+  g_lr: 0.0005
   g_b1: 0.5
   g_b2: 0.999
 
-  d_lr: 0.0002
+  d_lr: 0.0005
   d_b1: 0.5
   d_b2: 0.999
 

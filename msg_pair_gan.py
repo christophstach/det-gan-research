@@ -184,25 +184,16 @@ class MsgPairGANTrail(PyTorchTrial):
             real_images2 = [real_images2]
             real_images3 = [real_images3]
 
-        d_loss, loss_same_real, loss_same_fake, loss_different = self.optimize_discriminator([
-            z1,
-            z2,
-            z3
-        ], [
-            real_images1,
-            real_images1,
-            real_images1
-        ])
+        d_loss, loss_same_real, loss_same_fake, loss_different = self.optimize_discriminator(
+            [z1, z2, z3],
+            [real_images1, real_images1, real_images1]
+        )
 
-        g_loss, alpha = self.optimize_generator([
-            z1,
-            z2,
-            z3
-        ], [
-            real_images1,
-            real_images2,
-            real_images3
-        ], batch_idx)
+        g_loss, alpha = self.optimize_generator(
+            [z1, z2, z3],
+            [real_images1, real_images2, real_images3],
+            batch_idx
+        )
 
         if batch_idx % self.log_images_interval == 0:
             self.log_fixed_images(batch_idx)

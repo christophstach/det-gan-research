@@ -84,7 +84,7 @@ class EqlConv2d(nn.Module):
             self.bias = nn.Parameter(FloatTensor(out_channels).fill_(0))
 
         fan_in = prod(self.kernel_size) * in_channels  # value of fan_in
-        self.scale = sqrt(2) / sqrt(fan_in)
+        self.scale = sqrt(2 / sqrt(fan_in))
 
     def forward(self, x):
         if self.padding_mode != 'zeros':

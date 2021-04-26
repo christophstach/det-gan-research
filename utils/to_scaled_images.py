@@ -5,7 +5,7 @@ from numpy import log2
 from torch.nn.functional import avg_pool2d
 
 
-def to_scaled_images(source_images, image_size: int, reverse=True, mode='avgpool'):
+def to_scaled_images(source_images, image_size: int, reverse=True, mode='bilinear'):
     if mode == 'avgpool':
         images = [source_images] + [
             avg_pool2d(source_images, 2 ** target_size)
