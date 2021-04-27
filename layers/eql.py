@@ -4,7 +4,7 @@ from typing import Union, TypeVar, Tuple
 
 import torch.nn.functional as F
 from numpy import sqrt, prod
-from torch import nn, empty, FloatTensor
+from torch import nn, empty, FloatTensor, Tensor
 from torch.nn import init
 
 
@@ -51,6 +51,33 @@ _size_5_t = _scalar_or_tuple_5_t[int]
 _size_6_t = _scalar_or_tuple_6_t[int]
 
 
+class EqlLinear(nn.Module):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(
+            nn.init.normal_(
+                empty(out_features, in_features)
+            )
+        )
+
+        if bias:
+            self.bias = nn.Parameter(
+                nn.init.uniform_(
+                    empty(out_features)
+                )
+            )
+        else:
+            self.register_parameter('bias', None)
+
+        self.scale = sqrt(2 / sqrt(in_features))
+
+    def forward(self, x):
+        return F.linear(x, self.weight * self.scale, self.bias)
+
+
 class EqlConv2d(nn.Module):
     def __init__(self,
                  in_channels: int,
@@ -81,7 +108,13 @@ class EqlConv2d(nn.Module):
         )
 
         if bias:
-            self.bias = nn.Parameter(FloatTensor(out_channels).fill_(0))
+            self.bias = nn.Parameter(
+                nn.init.uniform_(
+                    empty(out_channels)
+                )
+            )
+        else:
+            self.register_parameter('bias', None)
 
         fan_in = prod(self.kernel_size) * in_channels  # value of fan_in
         self.scale = sqrt(2 / sqrt(fan_in))

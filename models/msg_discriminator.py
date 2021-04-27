@@ -6,7 +6,7 @@ from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
 from layers import MinibatchStdDev
-from layers.conv import EqlConv2d
+from layers.eql import EqlConv2d, EqlLinear
 from utils import create_downscale, create_activation_fn
 
 
@@ -14,7 +14,7 @@ class MsgDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
         super().__init__()
 
-        downscale = 'bilinear'
+        downscale = 'unshuffle'
         activation_fn = 'lrelu'
         eql = False
 
@@ -31,9 +31,27 @@ class MsgDiscriminator(nn.Module):
                 super().__init__()
 
                 if eql:
-                    self.conv = sn(EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
+                    self.conv = sn(
+                        EqlConv2d(
+                            in_channels,
+                            out_channels,
+                            (3, 3),
+                            (1, 1),
+                            (1, 1),
+                            padding_mode='replicate'
+                        )
+                    )
                 else:
-                    self.conv = sn(nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect'))
+                    self.conv = sn(
+                        nn.Conv2d(
+                            in_channels,
+                            out_channels,
+                            (3, 3),
+                            (1, 1),
+                            (1, 1),
+                            padding_mode='replicate'
+                        )
+                    )
 
             def forward(self, x):
                 return self.conv(x)
@@ -48,9 +66,10 @@ class MsgDiscriminator(nn.Module):
                 )
 
                 self.compute2 = nn.Sequential(
-                    Conv(in_channels, out_channels),
+                    # Conv(in_channels, out_channels),
+                    # create_activation_fn(activation_fn, out_channels),
+                    create_downscale(downscale, in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
-                    create_downscale(downscale)
                 )
 
             def forward(self, rgb):
@@ -74,9 +93,10 @@ class MsgDiscriminator(nn.Module):
                 )
 
                 self.compute2 = nn.Sequential(
-                    Conv(in_channels, out_channels),
+                    # Conv(in_channels, out_channels),
+                    # create_activation_fn(activation_fn, out_channels),
+                    create_downscale(downscale, in_channels, out_channels),
                     create_activation_fn(activation_fn, out_channels),
-                    create_downscale(downscale)
                 )
 
             def forward(self, x, rgb):
@@ -113,15 +133,15 @@ class MsgDiscriminator(nn.Module):
 
                 if eql:
                     self.scorer = nn.Sequential(
-                        sn(EqlConv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))),
-                        nn.Softmax()
+                        Reshape(shape=(-1, in_channels)),
+                        sn(EqlLinear(in_channels, out_channels)),
+                        nn.Softmax(dim=1)
                     )
                 else:
                     self.scorer = nn.Sequential(
                         Reshape(shape=(-1, in_channels)),
                         sn(nn.Linear(in_channels, out_channels)),
-                        # sn(nn.Conv2d(in_channels, out_channels, (1, 1), (1, 1), (0, 0))),
-                        nn.Softmax()
+                        nn.Softmax(dim=1)
                     )
 
             def forward(self, x, rgb):

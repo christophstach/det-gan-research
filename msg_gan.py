@@ -99,7 +99,7 @@ class MsgGanTrial(PyTorchTrial):
         }
 
     def generator_batch(self, real_images, batch_size):
-        real_images = [r.requires_grad_(False) for r in real_images]
+        # real_images = [r.requires_grad_(False) for r in real_images]
 
         self.generator.zero_grad()
 

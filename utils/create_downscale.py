@@ -1,5 +1,6 @@
 from torch import nn
 from torch.nn.functional import interpolate
+from torch.nn.utils import spectral_norm as sn
 
 
 def create_downscale(downscale: str, in_channels: int = None, out_channels: int = None):
@@ -32,11 +33,13 @@ def create_downscale(downscale: str, in_channels: int = None, out_channels: int 
         'avgpool': lambda: nn.AvgPool2d(2, 2),
         'nearest': lambda: NearestDownscale(),
         'bilinear': lambda: BilinearDownscale(),
-        'shuffle': lambda: nn.Sequential(
+        'unshuffle': lambda: nn.Sequential(
+            sn(nn.Conv2d(in_channels, out_channels // 4, (1, 1), (1, 1), (0, 0))),
             nn.PixelUnshuffle(2),
-            nn.Conv2d(in_channels * 4, out_channels, (1, 1), (1, 1), (0, 0))
         ),
-        'conv': lambda: nn.Conv2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1), padding_mode='replicate')
+        'conv': lambda: sn(
+            nn.Conv2d(in_channels, out_channels, (4, 4), (2, 2), (1, 1), padding_mode='replicate')
+        )
     }
 
     return downscale_dict[downscale]()

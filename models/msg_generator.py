@@ -2,17 +2,18 @@ import math
 
 from torch import nn
 
-from layers.conv import EqlConv2d
+from layers.eql import EqlConv2d
 from utils import create_activation_fn, create_norm, create_upscale
+from torch.nn.utils import spectral_norm as sn
 
 
 class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'batch'
+        norm = 'passthrough'
         activation_fn = 'lrelu'
-        upscale = 'bilinear'
+        upscale = 'nearest'
         eql = False
 
         class Conv(nn.Module):
@@ -20,9 +21,28 @@ class MsgGenerator(nn.Module):
                 super().__init__()
 
                 if eql:
-                    self.conv = EqlConv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                    self.conv = sn(
+                        EqlConv2d(
+                            in_channels,
+                            out_channels,
+                            (3, 3),
+                            (1, 1),
+                            (1, 1),
+                            padding_mode='replicate'
+                        )
+                    )
+
                 else:
-                    self.conv = nn.Conv2d(in_channels, out_channels, (3, 3), (1, 1), (1, 1), padding_mode='reflect')
+                    self.conv = sn(
+                        nn.Conv2d(
+                            in_channels,
+                            out_channels,
+                            (3, 3),
+                            (1, 1),
+                            (1, 1),
+                            padding_mode='replicate'
+                        )
+                    )
 
             def forward(self, x):
                 return self.conv(x)
@@ -31,19 +51,15 @@ class MsgGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.compute1 = nn.Sequential(
-                    Conv(in_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
-                )
-
-                self.compute2 = nn.Sequential(
-                    Conv(out_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
-                )
+                self.compute1 = Conv(in_channels, out_channels)
+                self.compute2 = Conv(out_channels, out_channels)
 
                 self.norm0 = create_norm(norm, in_channels)
                 self.norm1 = create_norm(norm, out_channels)
                 self.norm2 = create_norm(norm, out_channels)
+
+                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
                     self.toRGB = nn.Sequential(
@@ -61,9 +77,11 @@ class MsgGenerator(nn.Module):
 
                 x = self.compute1(x)
                 x = self.norm1(x)
+                x = self.act_fn1(x)
 
                 x = self.compute2(x)
                 x = self.norm2(x)
+                x = self.act_fn2(x)
 
                 return x, self.toRGB(x)
 
@@ -71,20 +89,18 @@ class MsgGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.up = create_upscale(upscale, in_channels)
-
                 self.compute1 = nn.Sequential(
+                    create_upscale(upscale),
                     Conv(in_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
                 )
-
-                self.compute2 = nn.Sequential(
-                    Conv(out_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
-                )
+                # self.compute1 = create_upscale(upscale, in_channels, out_channels)
+                self.compute2 = Conv(out_channels, out_channels)
 
                 self.norm1 = create_norm(norm, out_channels)
                 self.norm2 = create_norm(norm, out_channels)
+
+                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
                     self.toRGB = nn.Sequential(
@@ -97,15 +113,14 @@ class MsgGenerator(nn.Module):
                         nn.Tanh()
                     )
 
-            def forward(self, x, identity):
-                # identity = self.up(identity)
-                x = self.up(x)
-
+            def forward(self, x):
                 x = self.compute1(x)
                 x = self.norm1(x)
+                x = self.act_fn1(x)
 
                 x = self.compute2(x)
                 x = self.norm2(x)
+                x = self.act_fn2(x)
 
                 rgb = self.toRGB(x)
                 return x, rgb
@@ -114,20 +129,18 @@ class MsgGenerator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.up = create_upscale(upscale, in_channels)
-
                 self.compute1 = nn.Sequential(
+                    create_upscale(upscale),
                     Conv(in_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
                 )
-
-                self.compute2 = nn.Sequential(
-                    Conv(out_channels, out_channels),
-                    create_activation_fn(activation_fn, out_channels)
-                )
+                # self.compute1 = create_upscale(upscale, in_channels, out_channels)
+                self.compute2 = Conv(out_channels, out_channels)
 
                 self.norm1 = create_norm(norm, out_channels)
                 self.norm2 = create_norm(norm, out_channels)
+
+                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
                     self.toRGB = nn.Sequential(
@@ -140,15 +153,14 @@ class MsgGenerator(nn.Module):
                         nn.Tanh()
                     )
 
-            def forward(self, x, identity):
-                # identity = self.up(identity)
-                x = self.up(x)
-
+            def forward(self, x):
                 x = self.compute1(x)
                 x = self.norm1(x)
+                x = self.act_fn1(x)
 
                 x = self.compute2(x)
                 x = self.norm2(x)
+                x = self.act_fn2(x)
 
                 rgb = self.toRGB(x)
                 return x, rgb
@@ -183,11 +195,7 @@ class MsgGenerator(nn.Module):
     def forward(self, x):
         rgbs = []
         for b in self.blocks:
-            if len(rgbs) > 0:
-                x, rgb = b(x, rgbs[0])
-            else:
-                x, rgb = b(x)
-
+            x, rgb = b(x)
             rgbs.insert(0, rgb)
 
         return rgbs
