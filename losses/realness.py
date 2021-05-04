@@ -2,8 +2,10 @@ import torch
 from numpy import histogram, random
 from scipy.stats import skewnorm
 from torch import Tensor, from_numpy
+from torch.nn.functional import softmax
 
 import losses.base.loss
+from utils.stat import torch_wasserstein_loss
 
 
 def js_div(p, q, reduce=True):
@@ -31,9 +33,11 @@ class Realness(losses.base.Loss):
         self.measure = 'kl'
 
         if self.measure == 'js':
-            self.div = js_div
+            self.distance = js_div
         elif self.measure == 'kl':
-            self.div = kl_div
+            self.distance = kl_div
+        elif self.measure == 'emd':
+            self.distance = torch_wasserstein_loss
         else:
             raise NotImplementedError()
 
@@ -58,8 +62,14 @@ class Realness(losses.base.Loss):
         self.anchor0 = self.anchor0.to(real_scores.device)
         self.anchor1 = self.anchor1.to(real_scores.device)
 
-        loss = self.div(self.anchor1, real_scores) + self.div(self.anchor0, fake_scores)
-        # loss -= self.div(self.anchor1, fake_scores) + self.div(self.anchor0, real_scores)
+        if self.measure == 'emd':
+            loss = self.distance(self.anchor1, real_scores) + self.distance(self.anchor0, fake_scores)
+        else:
+            real_probs = softmax(real_scores, dim=1)
+            fake_probs = softmax(fake_scores, dim=1)
+
+            loss = self.distance(self.anchor1, real_probs) + self.distance(self.anchor0, fake_probs)
+            # loss -= self.div(self.anchor1, fake_probs) + self.div(self.anchor0, real_probs)
 
         return loss
 
@@ -67,13 +77,26 @@ class Realness(losses.base.Loss):
         self.anchor0 = self.anchor0.to(real_scores.device)
         self.anchor1 = self.anchor1.to(real_scores.device)
 
-        # No relativism
-        # loss = self.div(self.anchor0, fake_scores)
+        if self.measure == 'emd':
+            # No relativism
+            # loss = self.distance(self.anchor0, fake_probs)
 
-        # EQ19 (default)
-        loss = self.div(real_scores, fake_scores) - self.div(self.anchor0, fake_scores)
+            # EQ19 (default)
+            loss = self.distance(real_scores, fake_scores) - self.distance(self.anchor0, fake_scores)
 
-        # EQ20
-        # loss = self.div(self.anchor1, fake_scores) - self.div(self.anchor0, fake_scores)
+            # EQ20
+            # loss = self.distance(self.anchor1, fake_probs) - self.distance(self.anchor0, fake_probs)
+        else:
+            real_probs = softmax(real_scores, dim=1)
+            fake_probs = softmax(fake_scores, dim=1)
+
+            # No relativism
+            # loss = self.distance(self.anchor0, fake_probs)
+
+            # EQ19 (default)
+            loss = self.distance(real_probs, fake_probs) - self.distance(self.anchor0, fake_probs)
+
+            # EQ20
+            # loss = self.distance(self.anchor1, fake_probs) - self.distance(self.anchor0, fake_probs)
 
         return loss
