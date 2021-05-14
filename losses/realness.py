@@ -50,17 +50,17 @@ class Realness(losses.base.Loss):
             count, _ = histogram(uniform, self.score_dim)
             self.anchor1 = from_numpy(count / sum(count)).float()
         else:
-            skew_left = skewnorm.rvs(-5, size=10000)
+            skew_left = skewnorm.rvs(-1.0, size=10000)
             count, _ = histogram(skew_left, self.score_dim)
             self.anchor0 = from_numpy(count / sum(count)).float()
 
-            skew_right = skewnorm.rvs(5, size=10000)
+            skew_right = skewnorm.rvs(1.0, size=10000)
             count, _ = histogram(skew_right, self.score_dim)
             self.anchor1 = from_numpy(count / sum(count)).float()
 
     def discriminator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
-        self.anchor0 = self.anchor0.to(real_scores.device)
-        self.anchor1 = self.anchor1.to(real_scores.device)
+        self.anchor0 = self.anchor0.to(real_scores)
+        self.anchor1 = self.anchor1.to(real_scores)
 
         if self.measure == 'emd':
             loss = self.distance(self.anchor1, real_scores) + self.distance(self.anchor0, fake_scores)
@@ -74,8 +74,8 @@ class Realness(losses.base.Loss):
         return loss
 
     def generator_loss(self, real_scores: Tensor, fake_scores: Tensor) -> Tensor:
-        self.anchor0 = self.anchor0.to(real_scores.device)
-        self.anchor1 = self.anchor1.to(real_scores.device)
+        self.anchor0 = self.anchor0.to(real_scores)
+        self.anchor1 = self.anchor1.to(real_scores)
 
         if self.measure == 'emd':
             # No relativism

@@ -3,20 +3,18 @@ from typing import Union, Dict, Any
 import torch
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, DataLoader, TorchData
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+from math import isnan
 from torch import Tensor
 from torch.optim import Adam
 from torchvision.utils import make_grid
 
-from loss_regularizers.msg_wgan_div_gradient_penalty import MsgWganDivGradientPenalty
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
 from models.msg_discriminator import MsgDiscriminator
 from models.msg_generator import MsgGenerator
-from utils import shift_image_range, create_dataset, create_evaluator, to_scaled_images, create_loss_fn
+from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn, to_scaled_images
 from utils.create_dataset import DatasetSplit
-
-from math import isnan
 
 
 class MsgGanTrial(PyTorchTrial):
@@ -62,7 +60,6 @@ class MsgGanTrial(PyTorchTrial):
         self.d_opt = self.context.wrap_optimizer(self.d_opt)
 
         self.loss = create_loss_fn(self.loss_fn, self.score_dim)
-        self.gradient_penalty = MsgWganDivGradientPenalty(self.discriminator)
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim, 4, 4)
 
         self.classifier_score = ClassifierScore(
@@ -99,8 +96,6 @@ class MsgGanTrial(PyTorchTrial):
         }
 
     def generator_batch(self, real_images, batch_size):
-        # real_images = [r.requires_grad_(False) for r in real_images]
-
         self.generator.zero_grad()
 
         z = torch.randn(batch_size, self.latent_dim, 4, 4)
@@ -119,14 +114,10 @@ class MsgGanTrial(PyTorchTrial):
         return {'g_loss': g_loss.item()}
 
     def discriminator_batch(self, real_images, batch_size):
-        # real_images = [r.requires_grad_(True) for r in real_images]
-
         self.discriminator.zero_grad()
 
-        # z = torch.randn(batch_size, self.latent_dim, 4, 4, requires_grad=True)
         z = torch.randn(batch_size, self.latent_dim, 4, 4)
         z = self.context.to_device(z)
-        # fake_images = self.generator(z)
 
         with torch.no_grad():
             fake_images = self.generator(z)
@@ -135,13 +126,10 @@ class MsgGanTrial(PyTorchTrial):
         fake_scores = self.discriminator(fake_images)
 
         d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
-        # gp = self.gradient_penalty(real_images, fake_images, real_scores, fake_scores)
 
-        # self.context.backward(d_loss + gp)
         self.context.backward(d_loss)
         self.context.step_optimizer(self.d_opt)
 
-        # return {'d_loss': d_loss.item(), 'gp': gp.item()}
         return {'d_loss': d_loss.item()}
 
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
