@@ -1,4 +1,5 @@
 import math
+import torch
 from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
@@ -44,6 +45,27 @@ class MsgGenerator(nn.Module):
 
             def forward(self, x):
                 return self.conv(x)
+
+        class ModulatedConv(nn.Module):
+            def __init__(self, style_dim, in_channels, out_channels):
+                super().__init__()
+
+                self.conv = Conv(in_channels, out_channels)
+                self.modulation = sn(nn.Linear(style_dim, in_channels))
+                self.epsilon = 1e-8
+
+            def forward(self, x, w):
+                style = self.modulation(w)
+
+                weight = getattr(self.conv, 'weight')
+                weight = style * weight
+                sigma = torch.sqrt(weight.square().sum([2, 3]).add(self.epsilon))
+                weight = weight / sigma
+                setattr(self.conv, 'weight', weight)
+
+                x = self.conv(x)
+
+                return x
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
