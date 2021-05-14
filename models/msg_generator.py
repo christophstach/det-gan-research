@@ -64,7 +64,6 @@ class MsgGenerator(nn.Module):
                 setattr(self.conv, 'weight', weight)
 
                 x = self.conv(x)
-
                 return x
 
         class FirstBlock(nn.Module):
