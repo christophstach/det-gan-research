@@ -3,6 +3,6 @@ from .generator import GeneratorFirstBlock, GeneratorIntermediateBlock, Generato
 from .minibatch_std_dev import MinibatchStdDev
 from .passthrough import Passthrough
 from .pixel_norm import PixelNorm
-from .self_attention import SelfAttention2d
+from .attention import SelfAttention2d
 from .sparse_switchable_norm import SparseSwitchNorm2d
 from .switchable_norm import SwitchNorm2d

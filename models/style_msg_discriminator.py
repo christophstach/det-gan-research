@@ -5,20 +5,19 @@ import torch
 from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
-
 from layers import MinibatchStdDev
 from layers.eql import EqlConv2d, EqlLinear
 from layers.reshape import Reshape
 from utils import create_downscale, create_activation_fn
 
 
-class MsgDiscriminator(nn.Module):
+class StyleMsgDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
         super().__init__()
 
         downscale = 'bilinear'
         activation_fn = 'lrelu'
-        eql = True
+        eql = False
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
@@ -31,7 +30,7 @@ class MsgDiscriminator(nn.Module):
                             out_channels,
                             (3, 3),
                             (1, 1),
-                            (1, 1, 1, 1),
+                            (1, 1),
                             padding_mode='reflect'
                         )
                     )
@@ -42,7 +41,7 @@ class MsgDiscriminator(nn.Module):
                             out_channels,
                             (3, 3),
                             (1, 1),
-                            (1, 1, 1, 1),
+                            (1, 1),
                             padding_mode='reflect'
                         )
                     )
@@ -76,9 +75,9 @@ class MsgDiscriminator(nn.Module):
                 super().__init__()
 
                 if eql:
-                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0, 0, 0))
+                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
                 else:
-                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0, 0, 0))
+                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
                     Conv(in_channels * 2, in_channels),
@@ -103,9 +102,9 @@ class MsgDiscriminator(nn.Module):
                 super().__init__()
 
                 if eql:
-                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0, 0, 0))
+                    self.fromRGB = EqlConv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
                 else:
-                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0, 0, 0))
+                    self.fromRGB = nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0))
 
                 self.compute1 = nn.Sequential(
                     MinibatchStdDev(),
@@ -115,12 +114,12 @@ class MsgDiscriminator(nn.Module):
 
                 if eql:
                     self.compute2 = nn.Sequential(
-                        sn(EqlConv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0, 0, 0))),
+                        sn(EqlConv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0))),
                         create_activation_fn(activation_fn, out_channels)
                     )
                 else:
                     self.compute2 = nn.Sequential(
-                        sn(nn.Conv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0, 0, 0))),
+                        sn(nn.Conv2d(in_channels, in_channels, (4, 4), (1, 1), (0, 0))),
                         create_activation_fn(activation_fn, out_channels)
                     )
 
@@ -176,17 +175,6 @@ class MsgDiscriminator(nn.Module):
                 self.blocks.append(
                     LastBlock(channel, channels[i + 1])
                 )
-
-    def forward2(self, rgb: Tensor):
-        if self.pack > 1:
-            x = torch.reshape(rgb, (-1, rgb.shape[1] * self.pack, rgb.shape[2], rgb.shape[3]))
-        else:
-            x = rgb
-
-        for b in self.blocks:
-            x = b(x)
-
-        return x
 
     def forward(self, rgbs: List[Tensor]):
         if self.pack > 1:

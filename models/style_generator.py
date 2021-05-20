@@ -154,7 +154,12 @@ class StyleGenerator(nn.Module):
             create_activation_fn(disentangler_activation_fn, latent_dim)
         )
 
-        self.const = nn.Parameter(Tensor(latent_dim, 4, 4))
+        self.const = nn.Parameter(
+            nn.init.normal_(
+                torch.empty(latent_dim, 4, 4)
+            )
+        )
+
         self.blocks = nn.ModuleList()
 
         for i, channel in enumerate(self.channels):

@@ -10,14 +10,14 @@ from torchvision.utils import make_grid
 
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
+from models.dcgan_discriminator import DcDiscriminator
+from models.dcgan_generator import DcGenerator
 from models.exponential_moving_average import ExponentialMovingAverage
-from models.msg_discriminator import MsgDiscriminator
-from models.msg_generator import MsgGenerator
-from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn, to_scaled_images
+from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn
 from utils.create_dataset import DatasetSplit
 
 
-class MsgGanTrial(PyTorchTrial):
+class DcGanTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext):
         super().__init__(context)
 
@@ -43,9 +43,9 @@ class MsgGanTrial(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = MsgGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
+        self.generator = DcGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
         self.generator = ExponentialMovingAverage(self.generator)
-        self.discriminator = MsgDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
+        self.discriminator = DcDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')
         self.evaluator.eval()
 
@@ -60,7 +60,7 @@ class MsgGanTrial(PyTorchTrial):
         self.d_opt = self.context.wrap_optimizer(self.d_opt)
 
         self.loss = create_loss_fn(self.loss_fn, self.score_dim)
-        self.fixed_z = torch.randn(self.num_log_images, self.latent_dim, 4, 4)
+        self.fixed_z = torch.randn(self.num_log_images, self.latent_dim)
 
         self.classifier_score = ClassifierScore(
             classifier=self.evaluator,
@@ -77,16 +77,15 @@ class MsgGanTrial(PyTorchTrial):
     def train_batch(self, batch: TorchData, epoch_idx: int, batch_idx: int) -> Union[Tensor, Dict[str, Any]]:
         real_images, _ = batch
         batch_size = real_images.shape[0]
-        real_images = to_scaled_images(real_images, self.image_size)
 
         d_logs = self.discriminator_batch(real_images, batch_size)
         g_logs = self.generator_batch(real_images, batch_size)
 
         self.generator.eval()
-        z = torch.randn(batch_size, self.latent_dim, 4, 4)
+        z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
         fake_images = self.generator(z)
-        classifier_score = self.classifier_score(fake_images[0])
+        classifier_score = self.classifier_score(fake_images)
         self.generator.train()
 
         return {
@@ -98,7 +97,7 @@ class MsgGanTrial(PyTorchTrial):
     def generator_batch(self, real_images, batch_size):
         self.generator.zero_grad()
 
-        z = torch.randn(batch_size, self.latent_dim, 4, 4)
+        z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
         fake_images = self.generator(z)
 
@@ -116,7 +115,7 @@ class MsgGanTrial(PyTorchTrial):
     def discriminator_batch(self, real_images, batch_size):
         self.discriminator.zero_grad()
 
-        z = torch.randn(batch_size, self.latent_dim, 4, 4)
+        z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
 
         with torch.no_grad():
@@ -135,41 +134,38 @@ class MsgGanTrial(PyTorchTrial):
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
         real_images, _ = batch
         batch_size = real_images.shape[0]
-        real_images = to_scaled_images(real_images, self.image_size)
 
         self.generator.eval()
         self.discriminator.eval()
 
         if batch_idx == 0:
             # log sample images
-            z = torch.randn(self.num_log_images, self.latent_dim, 4, 4)
+            z = torch.randn(self.num_log_images, self.latent_dim)
             z = self.context.to_device(z)
 
-            sample_images_list = self.generator(z)
-            for sample_images in sample_images_list:
-                sample_images = shift_image_range(sample_images)
-                sample_grid = make_grid(sample_images, nrow=5)
+            sample_images = self.generator(z)
+            sample_images = shift_image_range(sample_images)
+            sample_grid = make_grid(sample_images, nrow=5)
 
-                self.logger.writer.add_image(
-                    f'generated_sample_images_{sample_images.shape[2]}x{sample_images.shape[2]}',
-                    sample_grid,
-                    self.context.current_train_batch()
-                )
+            self.logger.writer.add_image(
+                f'generated_sample_images_{sample_images.shape[2]}x{sample_images.shape[2]}',
+                sample_grid,
+                self.context.current_train_batch()
+            )
 
             # log fixed images
             self.fixed_z = self.context.to_device(self.fixed_z)
-            fixed_images_list = self.generator(self.fixed_z)
-            for fixed_images in fixed_images_list:
-                fixed_images = shift_image_range(fixed_images)
-                fixed_grid = make_grid(fixed_images, nrow=5)
+            fixed_images = self.generator(self.fixed_z)
+            fixed_images = shift_image_range(fixed_images)
+            fixed_grid = make_grid(fixed_images, nrow=5)
 
-                self.logger.writer.add_image(
-                    f'generated_fixed_images_{fixed_images.shape[2]}x{fixed_images.shape[2]}',
-                    fixed_grid,
-                    self.context.current_train_batch()
-                )
+            self.logger.writer.add_image(
+                f'generated_fixed_images_{fixed_images.shape[2]}x{fixed_images.shape[2]}',
+                fixed_grid,
+                self.context.current_train_batch()
+            )
 
-        z = torch.randn(batch_size, self.latent_dim, 4, 4)
+        z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
         fake_images = self.generator(z)
 
@@ -179,8 +175,8 @@ class MsgGanTrial(PyTorchTrial):
         val_d_loss = self.loss.discriminator_loss(real_scores, fake_scores).item()
         val_g_loss = self.loss.generator_loss(real_scores, fake_scores).item()
 
-        val_classifier_score = self.classifier_score(fake_images[0])
-        self.fid.update(real_images[0], fake_images[0])
+        val_classifier_score = self.classifier_score(fake_images)
+        self.fid.update(real_images, fake_images)
 
         self.generator.train()
         self.discriminator.train()

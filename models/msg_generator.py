@@ -1,7 +1,5 @@
 import math
-import torch
 from torch import nn, Tensor
-from torch.nn.utils import spectral_norm as sn
 
 from layers.eql import EqlConv2d
 from utils import create_activation_fn, create_norm, create_upscale
@@ -11,60 +9,37 @@ class MsgGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'passthrough'
+        norm = 'pixel'
         activation_fn = 'lrelu'
         upscale = 'bilinear'
-        eql = False
+        eql = True
 
         class Conv(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
                 if eql:
-                    self.conv = sn(
-                        EqlConv2d(
-                            in_channels,
-                            out_channels,
-                            (3, 3),
-                            (1, 1),
-                            (1, 1),
-                            padding_mode='reflect'
-                        )
+                    self.conv = EqlConv2d(
+                        in_channels,
+                        out_channels,
+                        (3, 3),
+                        (1, 1),
+                        (1, 1, 1, 1),
+                        padding_mode='reflect'
                     )
+
                 else:
-                    self.conv = sn(
-                        nn.Conv2d(
-                            in_channels,
-                            out_channels,
-                            (3, 3),
-                            (1, 1),
-                            (1, 1),
-                            padding_mode='reflect'
-                        )
+                    self.conv = nn.Conv2d(
+                        in_channels,
+                        out_channels,
+                        (3, 3),
+                        (1, 1),
+                        (1, 1, 1, 1),
+                        padding_mode='reflect'
                     )
 
             def forward(self, x):
                 return self.conv(x)
-
-        class ModulatedConv(nn.Module):
-            def __init__(self, style_dim, in_channels, out_channels):
-                super().__init__()
-
-                self.conv = Conv(in_channels, out_channels)
-                self.modulation = sn(nn.Linear(style_dim, in_channels))
-                self.epsilon = 1e-8
-
-            def forward(self, x, w):
-                style = self.modulation(w)
-
-                weight = getattr(self.conv, 'weight')
-                weight = style * weight
-                sigma = torch.sqrt(weight.square().sum([2, 3]).add(self.epsilon))
-                weight = weight / sigma
-                setattr(self.conv, 'weight', weight)
-
-                x = self.conv(x)
-                return x
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
@@ -81,20 +56,20 @@ class MsgGenerator(nn.Module):
                 self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
-                    self.toRGB = sn(EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
                 else:
-                    self.toRGB = sn(nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
 
             def forward(self, x):
                 x = self.norm0(x)
 
                 x = self.compute1(x)
-                x = self.norm1(x)
                 x = self.act_fn1(x)
+                x = self.norm1(x)
 
                 x = self.compute2(x)
-                x = self.norm2(x)
                 x = self.act_fn2(x)
+                x = self.norm2(x)
 
                 rgb = self.toRGB(x)
                 return x, rgb
@@ -116,18 +91,18 @@ class MsgGenerator(nn.Module):
                 self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
-                    self.toRGB = sn(EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
                 else:
-                    self.toRGB = sn(nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
 
             def forward(self, x):
                 x = self.compute1(x)
-                x = self.norm1(x)
                 x = self.act_fn1(x)
+                x = self.norm1(x)
 
                 x = self.compute2(x)
-                x = self.norm2(x)
                 x = self.act_fn2(x)
+                x = self.norm2(x)
 
                 rgb = self.toRGB(x)
                 return x, rgb
@@ -149,18 +124,18 @@ class MsgGenerator(nn.Module):
                 self.act_fn2 = create_activation_fn(activation_fn, out_channels)
 
                 if eql:
-                    self.toRGB = sn(EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = EqlConv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
                 else:
-                    self.toRGB = sn(nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0)))
+                    self.toRGB = nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0, 0, 0))
 
             def forward(self, x):
                 x = self.compute1(x)
-                x = self.norm1(x)
                 x = self.act_fn1(x)
+                x = self.norm1(x)
 
                 x = self.compute2(x)
-                x = self.norm2(x)
                 x = self.act_fn2(x)
+                x = self.norm2(x)
 
                 rgb = self.toRGB(x)
                 return x, rgb
