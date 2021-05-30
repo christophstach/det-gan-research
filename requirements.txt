@@ -1,8 +1,8 @@
 determined==0.15.5
 determined_common==0.15.5
 determined_cli==0.15.5
-torch==1.8.0
-torchvision==0.9.0
+torch==1.8.1+cu111
+torchvision==0.9.1+cu111
 jupyterlab==3.0.4
 ipywidgets==7.6.3
 tensorboard==2.4.0
@@ -17,3 +17,4 @@ pytorch-fid==0.2.0
 typing-extensions==3.7.4.3
 geomloss==0.2.4
 pykeops==1.5
+kornia==0.5.2

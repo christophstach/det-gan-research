@@ -19,6 +19,6 @@ def sample_noise(batch_size: int, noise_size: int, normalize=False, truncations=
     noise = distribution.sample((batch_size, noise_size, 1, 1))
 
     if normalize:
-        return noise / noise.norm(dim=-1, keepdim=True) * (noise_size ** 0.5)
+        return noise / noise.norm1(dim=-1, keepdim=True) * (noise_size ** 0.5)
     else:
         return noise

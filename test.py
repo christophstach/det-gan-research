@@ -1,68 +1,56 @@
+import math
+
 import torch
 
+from models.resgan_discriminator import ResDiscriminator
+from models.resgan_generator import ResGenerator
 
-#######################################################
-#       STATISTICAL DISTANCES(LOSSES) IN PYTORCH      #
-#######################################################
+g_depth = 4
+d_depth = 4
+latent_dim = 128
+score_dim = 32
+image_size = 256
+image_channels = 3
 
-## Statistial Distances for 1D weight distributions
-## Inspired by Scipy.Stats Statistial Distances for 1D
-## Pytorch Version, supporting Autograd to make a valid Loss
-## Supposing Inputs are Groups of Same-Length Weight Vectors
-## Instead of (Points, Weight), full-length Weight Vectors are taken as Inputs
-## Code Written by E.Bao, CASIA
+print('cuda.is_available', torch.cuda.is_available())
 
-def torch_wasserstein_loss(tensor_a, tensor_b):
-    # Compute the first Wasserstein distance between two 1D distributions.
-    return torch_cdf_loss(tensor_a, tensor_b, p=1)
+z = torch.randn(4, latent_dim).cuda()
+generator = ResGenerator(g_depth, image_size, image_channels, latent_dim).cuda()
+discriminator = ResDiscriminator(d_depth, image_size, image_channels, score_dim).cuda()
 
+print('generator.channels', generator.channels)
+print('discriminator.channels', discriminator.channels)
 
-def torch_energy_loss(tensor_a, tensor_b):
-    # Compute the energy distance between two 1D distributions.
-    return (2 ** 0.5) * torch_cdf_loss(tensor_a, tensor_b, p=2)
+fake_images, w = generator(z)
+print('fake_images.shape', fake_images.shape)
 
+score = discriminator(fake_images)
 
-def torch_cdf_loss(tensor_a, tensor_b, p=1):
-    # last-dimension is weight distribution
-    # p is the norm of the distance, p=1 --> First Wasserstein Distance
-    # to get a positive weight with our normalized distribution
-    # we recommend combining this loss with other difference-based losses like L1
-
-    # normalize distribution, add 1e-14 to divisor to avoid 0/0
-    tensor_a = tensor_a / (torch.sum(tensor_a, dim=-1, keepdim=True) + 1e-14)
-    tensor_b = tensor_b / (torch.sum(tensor_b, dim=-1, keepdim=True) + 1e-14)
-    # make cdf with cumsum
-    cdf_tensor_a = torch.cumsum(tensor_a, dim=-1)
-    cdf_tensor_b = torch.cumsum(tensor_b, dim=-1)
-
-    # choose different formulas for different norm situations
-    if p == 1:
-        cdf_distance = torch.sum(torch.abs((cdf_tensor_a - cdf_tensor_b)), dim=-1)
-    elif p == 2:
-        cdf_distance = torch.sqrt(torch.sum(torch.pow((cdf_tensor_a - cdf_tensor_b), 2), dim=-1))
-    else:
-        cdf_distance = torch.pow(torch.sum(torch.pow(torch.abs(cdf_tensor_a - cdf_tensor_b), p), dim=-1), 1 / p)
-
-    return cdf_distance
+n_blocks = len(generator.blocks)
 
 
-def torch_validate_distribution(tensor_a, tensor_b):
-    # Zero sized dimension is not supported by pytorch, we suppose there is no empty inputs
-    # Weights should be non-negative, and with a positive and finite sum
-    # We suppose all conditions will be corrected by network training
-    # We only check the match of the size here
-    if tensor_a.size() != tensor_b.size():
-        raise ValueError("Input weight tensors must be of the same size")
+def calculate_chunk_sections(latent_dim, n_blocks):
+    closest_power_of_two = 1
+    max_divisible = math.ceil(latent_dim / (n_blocks + 1))
+
+    while True:
+        if closest_power_of_two > max_divisible:
+            break
+        else:
+            closest_power_of_two *= 2
+
+    closest_power_of_two //= 2
+
+    sections = [closest_power_of_two for _ in range(n_blocks)]
+    sections.insert(0, latent_dim - (n_blocks * closest_power_of_two))
+
+    return sections
 
 
-p = torch.Tensor([
-    [1, 0, 0],
-    [0, 0, 0],
-])
+def create_chunks(z, n_blocks):
+    sections = calculate_chunk_sections(z.shape[1], n_blocks)
+    return torch.split(z, sections, dim=1)
 
-q = torch.Tensor([
 
-    0, 0, 1,
-])
-
-print(torch_wasserstein_loss(p, q))
+for chunk in create_chunks(z, n_blocks):
+    print(chunk.shape)

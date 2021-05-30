@@ -11,13 +11,13 @@ from torchvision.utils import make_grid
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.dcgan_discriminator import DcDiscriminator
-from models.dcgan_generator import DcGenerator
 from models.exponential_moving_average import ExponentialMovingAverage
+from models.shuffle_generator import ShuffleGenerator
 from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn
 from utils.create_dataset import DatasetSplit
 
 
-class DcGanTrial(PyTorchTrial):
+class ShuffleGanTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext):
         super().__init__(context)
 
@@ -43,7 +43,7 @@ class DcGanTrial(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = DcGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
+        self.generator = ShuffleGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
         self.generator = ExponentialMovingAverage(self.generator)
         self.discriminator = DcDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')

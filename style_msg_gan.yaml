@@ -1,4 +1,4 @@
-description: "StyleMsgGAN - Celeba HQ - EMA - Realness - dis_act:lrelu - pad:reflect - depth:8 - lr:0.0001/0.0001 - size:128"
+description: "StyleMsgGAN - Celeba HQ - EMA - Realness - dis_act:lrelu - pad.py:reflect - depth:8 - lr:0.0001/0.0001 - size:128"
 entrypoint: style_msg_gan:StyleMsgGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ

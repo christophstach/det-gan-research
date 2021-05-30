@@ -22,6 +22,6 @@ class GradientPenalty:
         gradients = autograd.grad(outputs=scores, inputs=interpolated_images, grad_outputs=ones)[0]
         gradients = gradients.view(batch_size, -1)
 
-        penalties = gradients.norm(2, dim=1) ** 2
+        penalties = gradients.norm1(2, dim=1) ** 2
 
         return 10.0 * penalties.mean()

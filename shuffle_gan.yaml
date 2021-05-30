@@ -1,5 +1,5 @@
-description: "MsgGAN - Celeba HQ - EMA - EQL - Realness - g_norm:pixel - pad.py:reflect - depth:16 - lr:0.001/0.001 - size:128"
-entrypoint: msg_gan:MsgGanTrial
+description: "ShuffleGAN - Celeba HQ - EMA - Realness - g_norm:batch - d_pad:reflect - depth:4/4 - lr:0.0001/0.0001 - score_dim:32 - size:256"
+entrypoint: shuffle_gan:ShuffleGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 63632 # for anime-face
@@ -31,20 +31,20 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 128
+  image_size: 256
   image_channels: 3
-  latent_dim: 2 # {latent_dim}x4x4
+  latent_dim: 128 # {latent_dim}x1x1
   score_dim: 32
   loss_fn: Realness
 
-  g_depth: 16
-  d_depth: 16
+  g_depth: 4
+  d_depth: 4
 
-  g_lr: 0.001
+  g_lr: 0.0001
   g_b1: 0.5
   g_b2: 0.999
 
-  d_lr: 0.001
+  d_lr: 0.0001
   d_b1: 0.5
   d_b2: 0.999
 

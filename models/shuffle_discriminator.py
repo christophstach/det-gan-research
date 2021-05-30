@@ -8,7 +8,7 @@ from layers.reshape import Reshape
 from utils import create_activation_fn
 
 
-class DcDiscriminator(nn.Module):
+class ShuffleDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim):
         super().__init__()
 
@@ -20,19 +20,11 @@ class DcDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromRGB = sn(nn.Conv2d(
-                    image_channels,
-                    in_channels,
-                    (1, 1),
-                    (1, 1),
-                    bias=False
-                ))
-
                 self.conv1 = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
+                    (3, 3),
+                    (1, 1),
                     (1, 1),
                     padding_mode=padding_mode,
                     bias=bias
@@ -40,11 +32,27 @@ class DcDiscriminator(nn.Module):
 
                 self.act_fn1 = create_activation_fn(activation_fn, out_channels)
 
-            def forward(self, x):
-                x = self.fromRGB(x)
+                self.unshuffle = nn.PixelUnshuffle(2)
 
+                self.conv2 = sn(nn.Conv2d(
+                    out_channels * 4,
+                    out_channels,
+                    (3, 3),
+                    (1, 1),
+                    (1, 1),
+                    padding_mode=padding_mode,
+                    bias=bias
+                ))
+
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
+
+            def forward(self, x):
                 x = self.conv1(x)
                 x = self.act_fn1(x)
+
+                x = self.unshuffle(x)
+                x = self.conv2(x)
+                x = self.act_fn2(x)
 
                 return x
 
@@ -55,8 +63,8 @@ class DcDiscriminator(nn.Module):
                 self.conv1 = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
+                    (3, 3),
+                    (1, 1),
                     (1, 1),
                     padding_mode=padding_mode,
                     bias=bias
@@ -64,9 +72,26 @@ class DcDiscriminator(nn.Module):
 
                 self.act_fn1 = create_activation_fn(activation_fn, out_channels)
 
+                self.unshuffle = nn.PixelUnshuffle(2)
+                self.conv2 = sn(nn.Conv2d(
+                    out_channels * 4,
+                    out_channels,
+                    (3, 3),
+                    (1, 1),
+                    (1, 1),
+                    padding_mode=padding_mode,
+                    bias=bias
+                ))
+
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
+
             def forward(self, x):
                 x = self.conv1(x)
                 x = self.act_fn1(x)
+
+                x = self.unshuffle(x)
+                x = self.conv2(x)
+                x = self.act_fn2(x)
 
                 return x
 
@@ -77,8 +102,8 @@ class DcDiscriminator(nn.Module):
                 self.conv1 = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
+                    (3, 3),
+                    (1, 1),
                     (1, 1),
                     padding_mode=padding_mode,
                     bias=bias
@@ -86,25 +111,35 @@ class DcDiscriminator(nn.Module):
 
                 self.act_fn1 = create_activation_fn(activation_fn, out_channels)
 
+                self.unshuffle = nn.PixelUnshuffle(4)
+
+                self.conv2 = sn(nn.Conv2d(
+                    out_channels * 16,
+                    out_channels,
+                    (1, 1),
+                    (1, 1),
+                    (0, 0),
+                    padding_mode=padding_mode,
+                    bias=bias
+                ))
+
+                self.act_fn2 = create_activation_fn(activation_fn, out_channels)
+
                 self.reparam = nn.Sequential(
-                    sn(nn.Conv2d(
-                        out_channels,
-                        score_dim,
-                        (4, 4),
-                        (1, 1),
-                        (0, 0),
-                        bias=False
-                    )),
-                    Reshape(shape=(-1, score_dim)),
-                    sn(nn.Linear(score_dim, score_dim * 2, bias=False)),
+                    Reshape(shape=(-1, out_channels)),
+                    sn(nn.Linear(out_channels, out_channels * 2)),
                 )
 
             def forward(self, x):
                 x = self.conv1(x)
                 x = self.act_fn1(x)
 
+                x = self.unshuffle(x)
+                x = self.conv2(x)
+                x = self.act_fn2(x)
+
                 statistics = self.reparam(x)
-                mu, log_variance = statistics.chunk(2, dim=1)
+                mu, log_variance = statistics.chunk(2, 1)
                 std = log_variance.mul(0.5).exp_()
 
                 epsilon = torch.randn(x.shape[0], score_dim).to(statistics)
@@ -114,30 +149,36 @@ class DcDiscriminator(nn.Module):
 
         # END block declaration section
 
-        self.channels = [
+        channels = [
+            image_channels,
             *[
                 2 ** i * d_depth
-                for i in range(1, int(math.log2(image_size)))
+                for i in range(2, int(math.log2(image_size)))
             ],
+            score_dim
         ]
 
         self.blocks = nn.ModuleList()
 
-        for i, channel in enumerate(self.channels):
+        for i, channel in enumerate(channels):
             if i == 0:  # first
                 self.blocks.append(
-                    FirstBlock(channel, self.channels[i + 1])
+                    FirstBlock(channel, channels[i + 1])
                 )
-            elif 0 < i < len(self.channels) - 2:  # intermediate
+            elif 0 < i < len(channels) - 2:  # intermediate
                 self.blocks.append(
-                    IntermediateBlock(channel, self.channels[i + 1])
+                    IntermediateBlock(channel, channels[i + 1])
                 )
-            elif i < len(self.channels) - 1:  # last
+            elif i < len(channels) - 1:  # last
                 self.blocks.append(
-                    LastBlock(channel, self.channels[i + 1])
+                    LastBlock(channel, channels[i + 1])
                 )
 
-    def forward(self, x: Tensor):
+        # self.apply(weights_init)
+
+    def forward(self, rgb: Tensor):
+        x = rgb
+
         for b in self.blocks:
             x = b(x)
 

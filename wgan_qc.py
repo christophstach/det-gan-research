@@ -146,7 +146,7 @@ class WGANQCTrail(PyTorchTrial):
         n = gradients.shape[0]
 
         RegLoss = 0.5 * (
-            (gradients.view(n, -1).norm(dim=1) / (2 * self.Kr) - self.Kr / 2 * RF_dif.view(n, -1).norm(dim=1)).pow(2)
+            (gradients.view(n, -1).norm1(dim=1) / (2 * self.Kr) - self.Kr / 2 * RF_dif.view(n, -1).norm1(dim=1)).pow(2)
         ).mean()
 
         fake.requires_grad_(False)
