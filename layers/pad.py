@@ -5,11 +5,11 @@ from torch.nn import functional as F
 
 
 class EvenPad2d(nn.Module):
-    def __init__(self, kernel_size, padding_mode='reflect', value: float = 0.0):
+    def __init__(self, large, small=0, padding_mode='reflect', value: float = 0.0):
         super().__init__()
 
-        self.large = kernel_size - 1
-        self.small = 0
+        self.large = large
+        self.small = small
 
         self.padding_mode = padding_mode
         self.value = value

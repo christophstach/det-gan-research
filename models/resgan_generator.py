@@ -14,7 +14,7 @@ class ResGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.res = UpResBlock(in_channels, out_channels, style_dim, 2, first=True)
+                self.res = UpResBlock(in_channels, out_channels, style_dim, first=True)
 
             def forward(self, x, w):
                 x = self.res(x, w)
@@ -25,7 +25,7 @@ class ResGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.res = UpResBlock(in_channels, out_channels, style_dim, 2)
+                self.res = UpResBlock(in_channels, out_channels, style_dim)
 
             def forward(self, x, w):
                 x = self.res(x, w)
@@ -36,7 +36,7 @@ class ResGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.res = UpResBlock(in_channels, out_channels, style_dim, 2)
+                self.res = UpResBlock(in_channels, out_channels, style_dim)
 
                 self.toImage = nn.Sequential(
                     nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0), bias=False),

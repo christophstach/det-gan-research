@@ -1,7 +1,10 @@
 import math
 
 import torch
+from torch import nn
 
+from layers.pad import EvenPad2d
+from layers.res import DownMultiBlock, UpMultiBlock
 from models.resgan_discriminator import ResDiscriminator
 from models.resgan_generator import ResGenerator
 
@@ -54,3 +57,10 @@ def create_chunks(z, n_blocks):
 
 for chunk in create_chunks(z, n_blocks):
     print(chunk.shape)
+
+down = DownMultiBlock(image_channels * 4, image_channels * 4).cuda()
+up = UpMultiBlock(image_channels * 4, image_channels * 4).cuda()
+
+print(fake_images.shape)
+print(down(fake_images.repeat(1, 4, 1, 1)).shape)
+print(up(fake_images.repeat(1, 4, 1, 1)).shape)

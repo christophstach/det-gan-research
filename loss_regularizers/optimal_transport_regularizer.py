@@ -84,7 +84,7 @@ class OptimalTransportRegularizer:
         gradients = torch.cat(inputs_gradients, dim=1)
 
         penalty = 0.5 * (
-            (gradients.norm(dim=1) / (2 * self.kr) - self.kr / 2 * RF_dif.view(gradients.shape[0], -1).norm1(dim=1)).pow(
+            (gradients.norm(dim=1) / (2 * self.kr) - self.kr / 2 * RF_dif.view(gradients.shape[0], -1).normZ(dim=1)).pow(
                 2)).mean()
 
         for fake_image in fake_images:

@@ -16,8 +16,11 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromImage = sn(nn.Conv2d(image_channels, in_channels, (1, 1), (1, 1), (0, 0), bias=False))
-                self.res = DownResBlock(in_channels, out_channels, 2)
+                self.fromImage = nn.Sequential(
+                    sn(nn.Conv2d(image_channels, in_channels, (1, 1), (1, 1), (0, 0), bias=False)),
+                    nn.LeakyReLU(0.2)
+                )
+                self.res = DownResBlock(in_channels, out_channels)
 
             def forward(self, x):
                 x = self.fromImage(x)
@@ -29,7 +32,7 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.res = DownResBlock(in_channels, out_channels, 2)
+                self.res = DownResBlock(in_channels, out_channels)
 
             def forward(self, x):
                 x = self.res(x)
@@ -40,7 +43,7 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.res = DownResBlock(in_channels, out_channels, 2, last=True)
+                self.res = DownResBlock(in_channels, out_channels, last=True)
 
                 self.reparam = nn.Sequential(
                     Reshape(shape=(-1, score_dim)),

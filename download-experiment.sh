@@ -1,0 +1,1 @@
+../../Repos/determined-ai-cbmi/scripts/download_model.py -u stachc trial download 48207 --best

@@ -1,4 +1,4 @@
-description: "ResGAN - Celeba HQ - EMA - Realness - depth:8 - lr:0.0001/0.0001 - size:256"
+description: "ResGAN - Celeba HQ - EMA - Realness - depth:8 - lr:0.0001/0.0001 - size:128"
 entrypoint: res_gan:ResGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
@@ -31,7 +31,7 @@ hyperparameters:
 
   # dataset: anime-face
   dataset: celeba-hq
-  image_size: 256
+  image_size: 128
   image_channels: 3
   latent_dim: 128 # {latent_dim}x1x1
   score_dim: 32
