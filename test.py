@@ -64,3 +64,6 @@ up = UpMultiBlock(image_channels * 4, image_channels * 4).cuda()
 print(fake_images.shape)
 print(down(fake_images.repeat(1, 4, 1, 1)).shape)
 print(up(fake_images.repeat(1, 4, 1, 1)).shape)
+
+#up2 = nn.AvgPool2d((1, 1), (0.5, 0.5)).cuda()
+#print(up2(fake_images).shape)

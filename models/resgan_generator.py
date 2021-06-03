@@ -51,7 +51,7 @@ class ResGenerator(nn.Module):
 
         # END block declaration section
 
-        self.split_latent_space = False
+        self.split_latent_space = True
 
         if self.split_latent_space:
             self.latent_splits = self.calculate_latent_splits(latent_dim, int(math.log2(image_size)) - 1)
