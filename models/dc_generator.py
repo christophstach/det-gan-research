@@ -1,33 +1,31 @@
 import math
 
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
-from torch.nn.utils import spectral_norm as sn
-
-from layers.res import DownResBlock
-from layers.reshape import Reshape
 
 
-class ResDiscriminator(nn.Module):
-    def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
-
+class DcGenerator(nn.Module):
+    def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
-
-        self.pack = pack
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromImage = nn.Sequential(
-                    sn(nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0), bias=False)),
-                    nn.LeakyReLU(0.2)
+                self.conv = nn.ConvTranspose2d(
+                    in_channels,
+                    out_channels,
+                    (4, 4),
+                    bias=False
                 )
-                self.res = DownResBlock(in_channels, out_channels)
+
+                self.norm = nn.BatchNorm2d(out_channels)
 
             def forward(self, x):
-                x = self.fromImage(x)
-                x = self.res(x)
+                x = self.conv(x)
+                x = self.norm(x)
+                x = F.relu(x, inplace=True)
 
                 return x
 
@@ -35,10 +33,21 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.res = DownResBlock(in_channels, out_channels)
+                self.conv = nn.ConvTranspose2d(
+                    in_channels,
+                    out_channels,
+                    (4, 4),
+                    (2, 2),
+                    (1, 1),
+                    bias=False
+                )
+
+                self.norm = nn.BatchNorm2d(out_channels)
 
             def forward(self, x):
-                x = self.res(x)
+                x = self.conv(x)
+                x = self.norm(x)
+                x = F.relu(x, inplace=True)
 
                 return x
 
@@ -46,33 +55,30 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.res = DownResBlock(in_channels, out_channels, last=True)
-
-                self.reparam = nn.Sequential(
-                    Reshape(shape=(-1, score_dim)),
-                    sn(nn.Linear(score_dim, score_dim * 2, bias=False)),
+                self.conv = nn.ConvTranspose2d(
+                    in_channels,
+                    out_channels,
+                    (4, 4),
+                    (2, 2),
+                    (1, 1),
+                    bias=False
                 )
 
             def forward(self, x):
-                x = self.res(x)
-
-                statistics = self.reparam(x)
-                mu, log_variance = statistics.chunk(2, dim=1)
-                std = log_variance.mul(0.5).exp_()
-
-                epsilon = torch.randn(x.shape[0], score_dim).to(statistics)
-                x = epsilon.mul(std).add_(mu)
+                x = self.conv(x)
+                x = torch.tanh(x)
 
                 return x
 
         # END block declaration section
 
         self.channels = [
-            *[
-                2 ** i * d_depth
-                for i in range(1, int(math.log2(image_size)))
-            ],
-            score_dim
+            latent_dim,
+            *list(reversed([
+                2 ** i * g_depth
+                for i in range(2, int(math.log2(image_size)))
+            ])),
+            image_channels
         ]
 
         self.blocks = nn.ModuleList()
@@ -106,9 +112,8 @@ class ResDiscriminator(nn.Module):
 
         self.apply(weights_init)
 
-    def forward(self, x: Tensor):
-        if self.pack > 1:
-            x = torch.reshape(x, (-1, x.shape[1] * self.pack, x.shape[2], x.shape[3]))
+    def forward(self, z: Tensor):
+        x = z.view(z.shape[0], -1, 1, 1)
 
         for b in self.blocks:
             x = b(x)

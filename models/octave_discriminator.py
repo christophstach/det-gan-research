@@ -1,50 +1,36 @@
 import math
 
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
 from layers.reshape import Reshape
-from utils import create_activation_fn
 
 
-class DcDiscriminator(nn.Module):
+class OctaveDiscriminator(nn.Module):
     def __init__(self, d_depth, image_size, image_channels, score_dim):
         super().__init__()
 
-        bias = True
-        activation_fn = 'lrelu'
         padding_mode = 'reflect'
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromRGB = sn(nn.Conv2d(
-                    image_channels,
-                    in_channels,
-                    (1, 1),
-                    (1, 1),
-                    bias=False
-                ))
-
-                self.conv1 = sn(nn.Conv2d(
+                self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
                     (4, 4),
                     (2, 2),
                     (1, 1),
                     padding_mode=padding_mode,
-                    bias=bias
+                    bias=False
                 ))
 
-                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
-
             def forward(self, x):
-                x = self.fromRGB(x)
-
-                x = self.conv1(x)
-                x = self.act_fn1(x)
+                x = self.conv(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -52,21 +38,19 @@ class DcDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.conv1 = sn(nn.Conv2d(
+                self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
                     (4, 4),
                     (2, 2),
                     (1, 1),
                     padding_mode=padding_mode,
-                    bias=bias
+                    bias=False
                 ))
 
-                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
-
             def forward(self, x):
-                x = self.conv1(x)
-                x = self.act_fn1(x)
+                x = self.conv(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -74,34 +58,22 @@ class DcDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.conv1 = sn(nn.Conv2d(
+                self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
                     (4, 4),
-                    (2, 2),
-                    (1, 1),
                     padding_mode=padding_mode,
-                    bias=bias
+                    bias=False
                 ))
 
-                self.act_fn1 = create_activation_fn(activation_fn, out_channels)
-
                 self.reparam = nn.Sequential(
-                    sn(nn.Conv2d(
-                        out_channels,
-                        score_dim,
-                        (4, 4),
-                        (1, 1),
-                        (0, 0),
-                        bias=False
-                    )),
-                    Reshape(shape=(-1, score_dim)),
-                    sn(nn.Linear(score_dim, score_dim * 2, bias=False)),
+                    Reshape(shape=(-1, out_channels)),
+                    sn(nn.Linear(out_channels, score_dim * 2, bias=False)),
                 )
 
             def forward(self, x):
-                x = self.conv1(x)
-                x = self.act_fn1(x)
+                x = self.conv(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 statistics = self.reparam(x)
                 mu, log_variance = statistics.chunk(2, dim=1)
@@ -115,10 +87,11 @@ class DcDiscriminator(nn.Module):
         # END block declaration section
 
         self.channels = [
+            image_channels,
             *[
                 2 ** i * d_depth
                 for i in range(1, int(math.log2(image_size)))
-            ],
+            ]
         ]
 
         self.blocks = nn.ModuleList()
@@ -136,6 +109,21 @@ class DcDiscriminator(nn.Module):
                 self.blocks.append(
                     LastBlock(channel, self.channels[i + 1])
                 )
+
+        def weights_init(m):
+            class_name = m.__class__.__name__
+
+            if class_name in ['Conv2d', 'ConvTranspose2d']:
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+
+            elif class_name in ['BatchNorm2d']:
+                nn.init.normal_(m.weight.data, 1.0, 0.02)
+                nn.init.constant_(m.bias.data, 0)
+
+        self.apply(weights_init)
 
     def forward(self, x: Tensor):
         for b in self.blocks:

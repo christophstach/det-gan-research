@@ -1,5 +1,5 @@
-description: "DcGAN - Celeba HQ - EMA - Realness - depth:24 - lr:0.0001/0.0001 - size:128"
-entrypoint: dc_gan:DcGanTrial
+description: "OctaveGAN - Celeba HQ - EMA - Realness - depth:24 - lr:0.0001/0.0001 - size:128"
+entrypoint: octave_gan:OctaveGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
 # records_per_epoch: 63632 # for anime-face

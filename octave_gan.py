@@ -10,14 +10,14 @@ from torchvision.utils import make_grid
 
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
-from models.dc_discriminator import DcDiscriminator
 from models.exponential_moving_average import ExponentialMovingAverage
-from models.shuffle_generator import ShuffleGenerator
+from models.octave_discriminator import OctaveDiscriminator
+from models.octave_generator import OctaveGenerator
 from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn
 from utils.create_dataset import DatasetSplit
 
 
-class ShuffleGanTrial(PyTorchTrial):
+class OctaveGanTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext):
         super().__init__(context)
 
@@ -43,9 +43,9 @@ class ShuffleGanTrial(PyTorchTrial):
         self.d_b1 = self.context.get_hparam('d_b1')
         self.d_b2 = self.context.get_hparam('d_b2')
 
-        self.generator = ShuffleGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
+        self.generator = OctaveGenerator(self.g_depth, self.image_size, self.image_channels, self.latent_dim)
         self.generator = ExponentialMovingAverage(self.generator)
-        self.discriminator = DcDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
+        self.discriminator = OctaveDiscriminator(self.d_depth, self.image_size, self.image_channels, self.score_dim)
         self.evaluator, resize_to, num_classes = create_evaluator('vggface2')
         self.evaluator.eval()
 
@@ -61,8 +61,6 @@ class ShuffleGanTrial(PyTorchTrial):
 
         self.loss = create_loss_fn(self.loss_fn, self.score_dim)
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim)
-
-        # self.ppl = SimplePathLengthRegularizer()
 
         self.classifier_score = ClassifierScore(
             classifier=self.evaluator,
@@ -88,7 +86,7 @@ class ShuffleGanTrial(PyTorchTrial):
         self.generator.eval()
         z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
-        fake_images, _ = self.generator(z)
+        fake_images = self.generator(z)
         classifier_score = self.classifier_score(fake_images)
         self.generator.train()
 
@@ -103,21 +101,18 @@ class ShuffleGanTrial(PyTorchTrial):
 
         z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
-        fake_images, w = self.generator(z)
+        fake_images = self.generator(z)
 
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)
 
         g_loss = self.loss.generator_loss(real_scores, fake_scores)
-        # ppl = self.ppl(w, fake_images)
 
         self.context.backward(g_loss)
-        # self.context.backward(g_loss + ppl)
         self.context.step_optimizer(self.g_opt)
         self.generator.update()
 
         return {'g_loss': g_loss.item()}
-        # return {'g_loss': g_loss.item(), 'ppl': ppl.item()}
 
     def discriminator_batch(self, real_images, batch_size):
         self.discriminator.zero_grad()
@@ -126,7 +121,7 @@ class ShuffleGanTrial(PyTorchTrial):
         z = self.context.to_device(z)
 
         with torch.no_grad():
-            fake_images, _ = self.generator(z)
+            fake_images = self.generator(z)
 
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)
@@ -150,7 +145,7 @@ class ShuffleGanTrial(PyTorchTrial):
             z = torch.randn(self.num_log_images, self.latent_dim)
             z = self.context.to_device(z)
 
-            sample_images, _ = self.generator(z)
+            sample_images = self.generator(z)
             sample_images = shift_image_range(sample_images)
             sample_grid = make_grid(sample_images, nrow=5)
 
@@ -162,7 +157,7 @@ class ShuffleGanTrial(PyTorchTrial):
 
             # log fixed images
             self.fixed_z = self.context.to_device(self.fixed_z)
-            fixed_images, _ = self.generator(self.fixed_z)
+            fixed_images = self.generator(self.fixed_z)
             fixed_images = shift_image_range(fixed_images)
             fixed_grid = make_grid(fixed_images, nrow=5)
 
@@ -174,7 +169,7 @@ class ShuffleGanTrial(PyTorchTrial):
 
         z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
-        fake_images, _ = self.generator(z)
+        fake_images = self.generator(z)
 
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)

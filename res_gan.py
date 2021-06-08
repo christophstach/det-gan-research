@@ -8,6 +8,7 @@ from torch import Tensor
 from torch.optim import Adam
 from torchvision.utils import make_grid
 
+from loss_regularizers.spectral_regularizer import SpectralRegularizer
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
 from models.exponential_moving_average import ExponentialMovingAverage
@@ -63,6 +64,7 @@ class ResGanTrial(PyTorchTrial):
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim)
 
         # self.ppl = SimplePathLengthRegularizer()
+        self.spectral = SpectralRegularizer()
 
         self.classifier_score = ClassifierScore(
             classifier=self.evaluator,
@@ -110,13 +112,14 @@ class ResGanTrial(PyTorchTrial):
 
         g_loss = self.loss.generator_loss(real_scores, fake_scores)
         # ppl = self.ppl(w, fake_images)
+        spectral_reg = self.spectral(g_loss, real_images, fake_images)
 
-        self.context.backward(g_loss)
+        self.context.backward(g_loss + spectral_reg)
         # self.context.backward(g_loss + ppl)
         self.context.step_optimizer(self.g_opt)
         self.generator.update()
 
-        return {'g_loss': g_loss.item()}
+        return {'g_loss': g_loss.item(), 'spectral_reg': spectral_reg.item()}
         # return {'g_loss': g_loss.item(), 'ppl': ppl.item()}
 
     def discriminator_batch(self, real_images, batch_size):

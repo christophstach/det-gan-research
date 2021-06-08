@@ -51,7 +51,7 @@ class ResGenerator(nn.Module):
 
         # END block declaration section
 
-        self.split_latent_space = True
+        self.split_latent_space = False
 
         if self.split_latent_space:
             self.latent_splits = self.calculate_latent_splits(latent_dim, int(math.log2(image_size)) - 1)
@@ -65,8 +65,17 @@ class ResGenerator(nn.Module):
         ]
 
         self.disentangler = nn.Sequential(
-            # nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0), bias=bias),
-            # create_activation_fn(disentangler_activation_fn, latent_dim)
+            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
+            # nn.BatchNorm2d(latent_dim),
+            # nn.LeakyReLU(0.2),
+
+            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
+            # nn.BatchNorm2d(latent_dim),
+            # nn.LeakyReLU(0.2),
+
+            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
+            # nn.BatchNorm2d(latent_dim),
+            # nn.LeakyReLU(0.2)
         )
 
         if not self.split_latent_space:
@@ -103,6 +112,21 @@ class ResGenerator(nn.Module):
                         self.latent_splits[i + 1] if self.split_latent_space else latent_dim
                     )
                 )
+
+        def weights_init(m):
+            class_name = m.__class__.__name__
+
+            if class_name in ['Conv2d', 'ConvTranspose2d']:
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+
+            elif class_name in ['BatchNorm2d']:
+                nn.init.normal_(m.weight.data, 1.0, 0.02)
+                nn.init.constant_(m.bias.data, 0)
+
+        self.apply(weights_init)
 
     def forward(self, z: Tensor):
         w = self.disentangler(z.view(z.shape[0], -1, 1, 1))
