@@ -165,8 +165,6 @@ class HdcGenerator(nn.Module):
                     )
                 )
 
-
-
         def weights_init(m):
             class_name = m.__class__.__name__
 
@@ -216,5 +214,3 @@ class HdcGenerator(nn.Module):
                 x = b(x, w)
 
         return x, w
-
-
