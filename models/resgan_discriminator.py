@@ -19,14 +19,9 @@ class ResDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromImage = nn.Sequential(
-                    sn(nn.Conv2d(image_channels * pack, in_channels, (1, 1), (1, 1), (0, 0), bias=False)),
-                    nn.LeakyReLU(0.2)
-                )
-                self.res = DownResBlock(in_channels, out_channels)
+                self.res = DownResBlock(in_channels, out_channels, first=True)
 
             def forward(self, x):
-                x = self.fromImage(x)
                 x = self.res(x)
 
                 return x
@@ -68,9 +63,10 @@ class ResDiscriminator(nn.Module):
         # END block declaration section
 
         self.channels = [
+            image_channels,
             *[
                 2 ** i * d_depth
-                for i in range(1, int(math.log2(image_size)))
+                for i in range(2, int(math.log2(image_size)))
             ],
             score_dim
         ]

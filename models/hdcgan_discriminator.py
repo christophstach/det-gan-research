@@ -1,77 +1,47 @@
 import math
 
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
 from torch.nn.utils import spectral_norm as sn
 
-from layers.pad import EvenPad2d
 from layers.reshape import Reshape
-from utils import create_activation_fn
-
-
-class ComputeBlock(nn.Module):
-    def __init__(self, channels, kernel_size: int, activation_fn: str):
-        super().__init__()
-
-        if kernel_size % 2 == 0:
-            self.conv = nn.Sequential(
-                EvenPad2d(kernel_size, 'reflect'),
-                sn(nn.Conv2d(channels, channels, (kernel_size, kernel_size), (1, 1), (0, 0)))
-            )
-        else:
-            padding = kernel_size // 2
-
-            self.conv = sn(nn.Conv2d(
-                channels,
-                channels,
-                (kernel_size, kernel_size),
-                (1, 1),
-                (padding, padding),
-                padding_mode='reflect'
-            ))
-
-        self.act_fn = create_activation_fn(activation_fn, channels)
-
-    def forward(self, x):
-        identity = x
-        x = self.conv(x)
-        x = self.act_fn(x)
-
-        return x + identity
 
 
 class HdcDiscriminator(nn.Module):
-    def __init__(self, d_depth, image_size, image_channels, score_dim):
+    def __init__(self, d_depth, image_size, image_channels, score_dim, pack=1):
+
         super().__init__()
 
-        activation_fn = 'lrelu'
-        padding_mode = 'reflect'
+        self.pack = pack
 
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.fromImage = sn(nn.Conv2d(image_channels, in_channels, (1, 1), (1, 1), (0, 0), bias=False))
-
-                self.compute = ComputeBlock(in_channels, 3, activation_fn)
-
                 self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
-                    (1, 1),
-                    padding_mode=padding_mode
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
                 ))
 
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
+                self.down = sn(nn.Conv2d(
+                    out_channels,
+                    out_channels,
+                    kernel_size=(4, 4),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    padding_mode='reflect'
+                ))
 
             def forward(self, x):
-                x = self.fromImage(x)
-
-                x = self.compute(x)
                 x = self.conv(x)
-                x = self.act_fn(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
+
+                x = self.down(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -79,23 +49,29 @@ class HdcDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.compute = ComputeBlock(in_channels, 2, activation_fn)
-
                 self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
-                    (1, 1),
-                    padding_mode=padding_mode
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
                 ))
 
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
+                self.down = sn(nn.Conv2d(
+                    out_channels,
+                    out_channels,
+                    kernel_size=(4, 4),
+                    stride=(2, 2),
+                    padding=(1, 1),
+                    padding_mode='reflect'
+                ))
 
             def forward(self, x):
-                x = self.compute(x)
                 x = self.conv(x)
-                x = self.act_fn(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
+
+                x = self.down(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -103,17 +79,20 @@ class HdcDiscriminator(nn.Module):
             def __init__(self, in_channels, out_channels):
                 super().__init__()
 
-                self.compute = ComputeBlock(in_channels, 2, activation_fn)
-
                 self.conv = sn(nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (1, 1),
-                    (0, 0),
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
                 ))
 
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
+                self.down = sn(nn.Conv2d(
+                    out_channels,
+                    out_channels,
+                    kernel_size=(4, 4),
+                    stride=(2, 2)
+                ))
 
                 self.reparam = nn.Sequential(
                     Reshape(shape=(-1, score_dim)),
@@ -121,9 +100,11 @@ class HdcDiscriminator(nn.Module):
                 )
 
             def forward(self, x):
-                x = self.compute(x)
                 x = self.conv(x)
-                x = self.act_fn(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
+
+                x = self.down(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 statistics = self.reparam(x)
                 mu, log_variance = statistics.chunk(2, dim=1)
@@ -137,9 +118,10 @@ class HdcDiscriminator(nn.Module):
         # END block declaration section
 
         self.channels = [
+            image_channels,
             *[
                 2 ** i * d_depth
-                for i in range(1, int(math.log2(image_size)))
+                for i in range(2, int(math.log2(image_size)))
             ],
             score_dim
         ]
@@ -160,7 +142,25 @@ class HdcDiscriminator(nn.Module):
                     LastBlock(channel, self.channels[i + 1])
                 )
 
+        def weights_init(m):
+            class_name = m.__class__.__name__
+
+            if class_name in ['Conv2d', 'ConvTranspose2d']:
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+
+            elif class_name in ['BatchNorm2d']:
+                nn.init.normal_(m.weight.data, 1.0, 0.02)
+                nn.init.constant_(m.bias.data, 0)
+
+        self.apply(weights_init)
+
     def forward(self, x: Tensor):
+        if self.pack > 1:
+            x = torch.reshape(x, (-1, x.shape[1] * self.pack, x.shape[2], x.shape[3]))
+
         for b in self.blocks:
             x = b(x)
 

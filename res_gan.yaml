@@ -1,4 +1,4 @@
-description: "ResGAN - Celeba HQ - EMA - Realness - depth:8 - lr:0.0001/0.0001 - size:128"
+description: "ResGAN - Celeba HQ - EMA - Realness - conv:3 - depth:16 - lr:0.0001/0.0001 - size:128"
 entrypoint: res_gan:ResGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
@@ -37,8 +37,8 @@ hyperparameters:
   score_dim: 32
   loss_fn: Realness
 
-  g_depth: 8
-  d_depth: 8
+  g_depth: 16
+  d_depth: 16
 
   g_lr: 0.0001
   g_b1: 0.5

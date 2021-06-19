@@ -2,9 +2,8 @@ import math
 
 import torch
 
-from models.dc_generator import DcGenerator
-from models.octave_discriminator import OctaveDiscriminator
-from models.octave_generator import OctaveGenerator
+from models.hdcgan_discriminator import HdcDiscriminator
+from models.hdcgan_generator import HdcGenerator
 
 g_depth = 4
 d_depth = 4
@@ -16,13 +15,13 @@ image_channels = 3
 print('cuda.is_available', torch.cuda.is_available())
 
 z = torch.randn(4, latent_dim).cuda()
-generator = DcGenerator(g_depth, image_size, image_channels, latent_dim).cuda()
-discriminator = OctaveDiscriminator(d_depth, image_size, image_channels, score_dim).cuda()
+generator = HdcGenerator(g_depth, image_size, image_channels, latent_dim).cuda()
+discriminator = HdcDiscriminator(d_depth, image_size, image_channels, score_dim).cuda()
 
 print('generator.channels', generator.channels)
 print('discriminator.channels', discriminator.channels)
 
-fake_images = generator(z)
+fake_images, _ = generator(z)
 print('fake_images.shape', fake_images.shape)
 
 score = discriminator(fake_images)

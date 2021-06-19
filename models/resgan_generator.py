@@ -4,6 +4,7 @@ import torch
 from torch import nn, Tensor
 
 from layers.res import UpResBlock
+from layers.reshape import Reshape
 
 
 class ResGenerator(nn.Module):
@@ -14,9 +15,12 @@ class ResGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
+                self.reshape = Reshape(shape=(-1, in_channels, 1, 1))
+
                 self.res = UpResBlock(in_channels, out_channels, style_dim, first=True)
 
             def forward(self, x, w):
+                x = self.reshape(x)
                 x = self.res(x, w)
 
                 return x
@@ -36,16 +40,11 @@ class ResGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.res = UpResBlock(in_channels, out_channels, style_dim)
-
-                self.toImage = nn.Sequential(
-                    nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0), bias=False),
-                    nn.Tanh()
-                )
+                self.res = UpResBlock(in_channels, out_channels, style_dim, last=True)
 
             def forward(self, x, w):
                 x = self.res(x, w)
-                x = self.toImage(x)
+                x = torch.tanh(x)
 
                 return x
 
@@ -60,28 +59,15 @@ class ResGenerator(nn.Module):
             self.latent_splits[0] if self.split_latent_space else latent_dim,
             *list(reversed([
                 2 ** i * g_depth
-                for i in range(1, int(math.log2(image_size)))
-            ]))
+                for i in range(2, int(math.log2(image_size)))
+            ])),
+            image_channels
         ]
-
-        self.disentangler = nn.Sequential(
-            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
-            # nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(0.2),
-
-            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
-            # nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(0.2),
-
-            # nn.Conv2d(latent_dim, latent_dim, (1, 1)),
-            # nn.BatchNorm2d(latent_dim),
-            # nn.LeakyReLU(0.2)
-        )
 
         if not self.split_latent_space:
             self.const = nn.Parameter(
                 nn.init.normal_(
-                    torch.empty(self.channels[0], 1, 1)
+                    torch.empty(self.channels[0])
                 )
             )
 
@@ -128,23 +114,6 @@ class ResGenerator(nn.Module):
 
         self.apply(weights_init)
 
-    def forward(self, z: Tensor):
-        w = self.disentangler(z.view(z.shape[0], -1, 1, 1))
-
-        if self.split_latent_space:
-            w = torch.split(w, self.latent_splits, dim=1)
-            x = w[0]
-
-            for i, b in enumerate(self.blocks):
-                x = b(x, w[i + 1])
-        else:
-            x = torch.unsqueeze(self.const, dim=0).repeat(z.shape[0], 1, 1, 1)
-
-            for b in self.blocks:
-                x = b(x, w)
-
-        return x, w
-
     @staticmethod
     def calculate_latent_splits(latent_dim, n_blocks):
         closest_power_of_two = 1
@@ -162,3 +131,20 @@ class ResGenerator(nn.Module):
         splits.insert(0, latent_dim - (n_blocks * closest_power_of_two))
 
         return splits
+
+    def forward(self, z: Tensor):
+        w = z.view(z.shape[0], -1, 1, 1)
+
+        if self.split_latent_space:
+            w = torch.split(w, self.latent_splits, dim=1)
+            x = w[0]
+
+            for i, b in enumerate(self.blocks):
+                x = b(x, w[i + 1])
+        else:
+            x = torch.unsqueeze(self.const, dim=0).repeat(z.shape[0], 1)
+
+            for b in self.blocks:
+                x = b(x, w)
+
+        return x, w

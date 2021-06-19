@@ -1,75 +1,50 @@
 import math
 
 import torch
+import torch.nn.functional as F
 from torch import nn, Tensor
 
 from layers.adain import AdaptiveInstanceNormalization2d
-from layers.pad import EvenPad2d
-from utils import create_activation_fn, create_norm
-
-
-class ComputeBlock(nn.Module):
-    def __init__(self, channels, kernel_size: int, norm: str, activation_fn: str):
-        super().__init__()
-
-        if kernel_size % 2 == 0:
-            self.conv = nn.Sequential(
-                EvenPad2d(kernel_size, 'reflect'),
-                nn.Conv2d(channels, channels, (kernel_size, kernel_size), (1, 1), (0, 0))
-            )
-        else:
-            padding = kernel_size // 2
-            self.conv = nn.Conv2d(
-                channels,
-                channels,
-                (kernel_size, kernel_size),
-                (1, 1),
-                (padding, padding),
-                padding_mode='reflect'
-            )
-
-        self.norm = create_norm(norm, channels)
-
-        self.act_fn = create_activation_fn(activation_fn, channels)
-
-    def forward(self, x):
-        identity = x
-        x = self.conv(x)
-        x = self.norm(x)
-        x = self.act_fn(x)
-
-        return x + identity
+from layers.reshape import Reshape
 
 
 class HdcGenerator(nn.Module):
     def __init__(self, g_depth, image_size, image_channels, latent_dim):
         super().__init__()
 
-        norm = 'batch'
-        activation_fn = 'lrelu'
-        disentangler_activation_fn = 'mish'
-
         class FirstBlock(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.conv = nn.ConvTranspose2d(
+                self.reshape = Reshape(shape=(-1, in_channels, 1, 1))
+
+                self.up = nn.ConvTranspose2d(
                     in_channels,
-                    out_channels,
-                    (4, 4),
-                    (1, 1),
-                    (0, 0)
+                    in_channels,
+                    kernel_size=(4, 4)
                 )
 
-                self.norm = AdaptiveInstanceNormalization2d(style_dim, out_channels)
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
-                self.compute = ComputeBlock(out_channels, 2, norm, activation_fn)
+                self.conv = nn.Conv2d(
+                    in_channels,
+                    out_channels,
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
+                )
+
+                self.adain = AdaptiveInstanceNormalization2d(style_dim, in_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
 
             def forward(self, x, w):
+                x = self.reshape(x)
+
+                x = self.up(x)
+                x = self.adain(x, w)
+                x = F.leaky_relu(x, 0.2, inplace=True)
+
                 x = self.conv(x)
-                x = self.norm(x, w)
-                x = self.act_fn(x)
-                x = self.compute(x)
+                x = self.bn(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -77,23 +52,33 @@ class HdcGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.conv = nn.ConvTranspose2d(
+                self.up = nn.ConvTranspose2d(
                     in_channels,
-                    out_channels,
-                    (4, 4),
-                    (2, 2),
-                    (1, 1)
+                    in_channels,
+                    kernel_size=(4, 4),
+                    stride=(2, 2),
+                    padding=(1, 1)
                 )
 
-                self.norm = AdaptiveInstanceNormalization2d(style_dim, out_channels)
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
-                self.compute = ComputeBlock(out_channels, 2, norm, activation_fn)
+                self.conv = nn.Conv2d(
+                    in_channels,
+                    out_channels,
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
+                )
+
+                self.adain = AdaptiveInstanceNormalization2d(style_dim, in_channels)
+                self.bn = nn.BatchNorm2d(out_channels)
 
             def forward(self, x, w):
+                x = self.up(x)
+                x = self.adain(x, w)
+                x = F.leaky_relu(x, 0.2, inplace=True)
+
                 x = self.conv(x)
-                x = self.norm(x, w)
-                x = self.act_fn(x)
-                x = self.compute(x)
+                x = self.bn(x)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
                 return x
 
@@ -101,36 +86,37 @@ class HdcGenerator(nn.Module):
             def __init__(self, in_channels, out_channels, style_dim):
                 super().__init__()
 
-                self.conv = nn.ConvTranspose2d(
+                self.up = nn.ConvTranspose2d(
+                    in_channels,
+                    in_channels,
+                    kernel_size=(4, 4),
+                    stride=(2, 2),
+                    padding=(1, 1)
+                )
+
+                self.conv = nn.Conv2d(
                     in_channels,
                     out_channels,
-                    (4, 4),
-                    (2, 2),
-                    (1, 1)
+                    kernel_size=(3, 3),
+                    padding=(1, 1),
+                    padding_mode='reflect'
                 )
 
-                self.norm = AdaptiveInstanceNormalization2d(style_dim, out_channels)
-                self.act_fn = create_activation_fn(activation_fn, out_channels)
-                self.compute = ComputeBlock(out_channels, 3, norm, activation_fn)
-
-                self.toImage = nn.Sequential(
-                    nn.Conv2d(out_channels, image_channels, (1, 1), (1, 1), (0, 0), bias=False),
-                    nn.Tanh()
-                )
+                self.adain = AdaptiveInstanceNormalization2d(style_dim, in_channels)
 
             def forward(self, x, w):
-                x = self.conv(x)
-                x = self.norm(x, w)
-                x = self.act_fn(x)
-                x = self.compute(x)
+                x = self.up(x)
+                x = self.adain(x, w)
+                x = F.leaky_relu(x, 0.2, inplace=True)
 
-                x = self.toImage(x)
+                x = self.conv(x)
+                x = torch.tanh(x)
 
                 return x
 
         # END block declaration section
 
-        self.split_latent_space = True
+        self.split_latent_space = False
 
         if self.split_latent_space:
             self.latent_splits = self.calculate_latent_splits(latent_dim, int(math.log2(image_size)) - 1)
@@ -139,19 +125,15 @@ class HdcGenerator(nn.Module):
             self.latent_splits[0] if self.split_latent_space else latent_dim,
             *list(reversed([
                 2 ** i * g_depth
-                for i in range(1, int(math.log2(image_size)))
-            ]))
+                for i in range(2, int(math.log2(image_size)))
+            ])),
+            image_channels
         ]
-
-        self.disentangler = nn.Sequential(
-            # nn.Conv2d(latent_dim, latent_dim, (1, 1), (1, 1), (0, 0), bias=bias),
-            # create_activation_fn(disentangler_activation_fn, latent_dim)
-        )
 
         if not self.split_latent_space:
             self.const = nn.Parameter(
                 nn.init.normal_(
-                    torch.empty(self.channels[0], 1, 1)
+                    torch.empty(self.channels[0])
                 )
             )
 
@@ -183,22 +165,22 @@ class HdcGenerator(nn.Module):
                     )
                 )
 
-    def forward(self, z: Tensor):
-        w = self.disentangler(z.view(z.shape[0], -1, 1, 1))
 
-        if self.split_latent_space:
-            w = torch.split(w, self.latent_splits, dim=1)
-            x = w[0]
 
-            for i, b in enumerate(self.blocks):
-                x = b(x, w[i + 1])
-        else:
-            x = torch.unsqueeze(self.const, dim=0).repeat(z.shape[0], 1, 1, 1)
+        def weights_init(m):
+            class_name = m.__class__.__name__
 
-            for b in self.blocks:
-                x = b(x, w)
+            if class_name in ['Conv2d', 'ConvTranspose2d']:
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
 
-        return x, w
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+
+            elif class_name in ['BatchNorm2d']:
+                nn.init.normal_(m.weight.data, 1.0, 0.02)
+                nn.init.constant_(m.bias.data, 0)
+
+        self.apply(weights_init)
 
     @staticmethod
     def calculate_latent_splits(latent_dim, n_blocks):
@@ -217,3 +199,22 @@ class HdcGenerator(nn.Module):
         splits.insert(0, latent_dim - (n_blocks * closest_power_of_two))
 
         return splits
+
+    def forward(self, z: Tensor):
+        w = z.view(z.shape[0], -1, 1, 1)
+
+        if self.split_latent_space:
+            w = torch.split(w, self.latent_splits, dim=1)
+            x = w[0]
+
+            for i, b in enumerate(self.blocks):
+                x = b(x, w[i + 1])
+        else:
+            x = torch.unsqueeze(self.const, dim=0).repeat(z.shape[0], 1)
+
+            for b in self.blocks:
+                x = b(x, w)
+
+        return x, w
+
+
