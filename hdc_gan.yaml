@@ -1,4 +1,4 @@
-description: "HdcGAN - Celeba HQ - EMA - Realness - depth:8 - lr:0.0001/0.0001 - size:128"
+description: "HdcGAN - Celeba HQ - EMA - Realness - depth:24 - lr:0.0001/0.0001 - size:128"
 entrypoint: hdc_gan:HdcGanTrial
 
 # records_per_epoch: 30000 # for celebAHQ
@@ -37,8 +37,8 @@ hyperparameters:
   score_dim: 32
   loss_fn: Realness
 
-  g_depth: 8
-  d_depth: 8
+  g_depth: 24
+  d_depth: 24
 
   g_lr: 0.0001
   g_b1: 0.5

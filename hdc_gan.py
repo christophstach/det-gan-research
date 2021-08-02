@@ -8,9 +8,10 @@ from torch import Tensor
 from torch.optim import Adam
 from torchvision.utils import make_grid
 
+from loss_regularizers.simple_wgan_div_gradient_penalty import GradientPenalty
 from metrics import FrechetInceptionDistance
 from metrics.inception_score import ClassifierScore
-from models.exponential_moving_average import ExponentialMovingAverage
+from models import ExponentialMovingAverage
 from models.hdcgan_discriminator import HdcDiscriminator
 from models.hdcgan_generator import HdcGenerator
 from utils import shift_image_range, create_dataset, create_evaluator, create_loss_fn
@@ -63,6 +64,7 @@ class HdcGanTrial(PyTorchTrial):
         self.fixed_z = torch.randn(self.num_log_images, self.latent_dim)
 
         # self.ppl = SimplePathLengthRegularizer()
+        self.gradient_penalty = GradientPenalty(self.discriminator)
 
         self.classifier_score = ClassifierScore(
             classifier=self.evaluator,
@@ -109,6 +111,7 @@ class HdcGanTrial(PyTorchTrial):
         fake_scores = self.discriminator(fake_images)
 
         g_loss = self.loss.generator_loss(real_scores, fake_scores)
+
         # ppl = self.ppl(w, fake_images)
 
         self.context.backward(g_loss)
@@ -120,23 +123,26 @@ class HdcGanTrial(PyTorchTrial):
         # return {'g_loss': g_loss.item(), 'ppl': ppl.item()}
 
     def discriminator_batch(self, real_images, batch_size):
+        real_images.requires_grad_(True)
+
         self.discriminator.zero_grad()
 
         z = torch.randn(batch_size, self.latent_dim)
         z = self.context.to_device(z)
 
-        with torch.no_grad():
-            fake_images, _ = self.generator(z)
+        # with torch.no_grad():
+        fake_images, _ = self.generator(z)
 
         real_scores = self.discriminator(real_images)
         fake_scores = self.discriminator(fake_images)
 
         d_loss = self.loss.discriminator_loss(real_scores, fake_scores)
+        gp = self.gradient_penalty(real_images, fake_images, real_scores, fake_scores)
 
-        self.context.backward(d_loss)
+        self.context.backward(d_loss + gp)
         self.context.step_optimizer(self.d_opt)
 
-        return {'d_loss': d_loss.item()}
+        return {'d_loss': d_loss.item(), 'gp': gp.item()}
 
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
         real_images, _ = batch
